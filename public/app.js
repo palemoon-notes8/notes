@@ -1659,6 +1659,10 @@
         <p class="ref">${esc(r.ref)}</p>
       </div></header>
       <div class="wrap cp">
+        <div class="cp-kpis two">
+          <div class="kpi sanction"><span>Sanctioned amount</span><strong id="kSanction">…</strong><small id="kSanctionNote">Loading from the tender…</small></div>
+          <div class="kpi"><span>Tender value (estimate)</span><strong>${num(r.value) ? money(r.value, { full: true }) : '—'}</strong><small>What bidders quote against</small></div>
+        </div>
         <div class="cp-kpis">
           <div class="kpi"><span>Winner</span><strong class="win-name">${r.winner ? `<button type="button" class="linkish" data-contractor="${esc(r.winner)}">${esc(w.firm)}</button>` : 'Not published'}</strong><small>${esc(w.person)}</small></div>
           <div class="kpi"><span>Winning bid</span><strong>${l1?.amount ? money(l1.amount) : '—'}</strong><small>${p !== null ? esc(pctText(p)) : (num(r.value) ? `Estimate ${money(r.value)}` : '')}</small></div>
@@ -1700,6 +1704,9 @@
   }
 
   // A past tender's conditions (EMD, fee, eligibility, documents, contact), asked from KPPP when the page opens.
+  function showSanction(value, note) {
+    if ($('kSanction')) { $('kSanction').innerHTML = value; $('kSanctionNote').textContent = note; }
+  }
   async function loadPastTender(r) {
     const box = $('awardTender');
     const key = `${r.cat || 'WORKS'}/${r.nit}`;
@@ -1709,10 +1716,12 @@
       }
       const f = await detailCache.get(key);
       if ($('awardTender') !== box) return;
+      showSanction(num(f.money?.provisional) ? money(f.money.provisional, { full: true }) : 'Not published', 'Total approved for the work (incl. GST, contingencies)');
       box.innerHTML = pastTenderHtml(r, f);
     } catch {
       detailCache.delete(key);
       if ($('awardTender') !== box) return;
+      showSanction('—', 'KPPP did not send it right now — tap “Try again” below');
       box.innerHTML = `<section class="panel"><h3>Tender conditions</h3><p class="muted-p">KPPP didn't send this old tender's conditions (EMD, eligibility, documents) right now. It may no longer keep them for closed tenders.</p>
         <button class="btn" type="button" id="retryPast">Try again</button></section>`;
       $('retryPast')?.addEventListener('click', () => { box.innerHTML = '<section class="panel"><h3>Loading tender conditions from KPPP…</h3><div class="skeleton line"></div></section>'; loadPastTender(r); });
