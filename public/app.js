@@ -542,7 +542,7 @@
       if ($('tpFiles') !== box) return;
       box.innerHTML = files.length ? `<h3>Tender documents <span class="count">${files.length}</span></h3>
         <div class="files">${files.map((x) => `<div class="file">${icon.doc}<span><b>${esc(x.name)}</b><small>${esc(x.type || 'Document')}</small></span>
-          ${/\.pdf$/i.test(x.name) ? `<a class="btn" href="${esc(x.url)}" target="_blank" rel="noopener">View</a>` : ''}
+          ${/\.pdf$/i.test(x.name) ? `<a class="btn" href="/pdf?src=${encodeURIComponent(x.url)}" target="_blank" rel="noopener">View</a>` : ''}
           <a class="btn primary" href="${esc(x.url)}&dl=1" download="${esc(x.name)}">Download</a></div>`).join('')}</div>
         <p class="note">Downloads come straight from KPPP. Large files can take a few seconds to start.</p>`
         : '<h3>Tender documents</h3><p class="muted-p">KPPP lists no documents for this tender.</p>';

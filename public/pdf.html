@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Document</title>
+<style>
+  :root{color-scheme:light dark}
+  *{box-sizing:border-box}
+  body{margin:0;background:#525659;font:15px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#fff}
+  header{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;padding:8px 12px;background:#312e81;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+  header a,header button{flex:none;height:36px;padding:0 12px;border:0;border-radius:9px;background:rgba(255,255,255,.15);color:#fff;font:inherit;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;cursor:pointer}
+  header .dl{background:#fff;color:#312e81}
+  #name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+  #pages{padding:10px 0 40px;display:flex;flex-direction:column;align-items:center;gap:10px}
+  .page{background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.4);max-width:100%}
+  .page canvas{display:block;width:100%;height:auto}
+  #msg{padding:40px 16px;text-align:center;max-width:520px;margin:0 auto}
+  #msg a{color:#c7d2fe}
+</style>
+</head>
+<body>
+<header>
+  <button type="button" id="back">←</button>
+  <span id="name">Loading…</span>
+  <button type="button" id="zoomOut" aria-label="Zoom out">−</button>
+  <button type="button" id="zoomIn" aria-label="Zoom in">+</button>
+  <a class="dl" id="dl" download>Download</a>
+</header>
+<div id="msg">Opening the document… Large files from KPPP can take a minute.</div>
+<div id="pages"></div>
+<script type="module">
+  import * as pdfjs from '/vendor/pdfjs/pdf.min.mjs';
+  pdfjs.GlobalWorkerOptions.workerSrc = '/vendor/pdfjs/pdf.worker.min.mjs';
+  const params = new URLSearchParams(location.search);
+  const src = params.get('src') || '';
+  const msg = document.getElementById('msg');
+  const pagesEl = document.getElementById('pages');
+  // Only documents served by this site (the /api/ file proxy).
+  const ok = src.startsWith('/api/');
+  const name = (() => { try { return new URL(src, location.origin).searchParams.get('name') || 'Document'; } catch { return 'Document'; } })();
+  document.getElementById('name').textContent = name;
+  document.title = name;
+  document.getElementById('dl').href = ok ? `${src}&dl=1` : '#';
+  document.getElementById('back').onclick = () => (history.length > 1 ? history.back() : window.close());
+  let zoom = 1, doc = null;
+  const observer = new IntersectionObserver((entries) => entries.forEach((e) => { if (e.isIntersecting) draw(e.target); }), { rootMargin: '600px 0px' });
+  async function draw(el) {
+    const want = `${zoom}`;
+    if (el.dataset.drawn === want) return;
+    el.dataset.drawn = want;
+    const page = await doc.getPage(Number(el.dataset.n));
+    const base = page.getViewport({ scale: 1 });
+    const cssWidth = Math.min(pagesEl.clientWidth - 16, 1000) * zoom;
+    const scale = (cssWidth / base.width) * Math.min(window.devicePixelRatio || 1, 2);
+    const vp = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.floor(vp.width);
+    canvas.height = Math.floor(vp.height);
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    el.replaceChildren(canvas);
+  }
+  function layout() {
+    pagesEl.querySelectorAll('.page').forEach((el) => {
+      const w = Math.min(pagesEl.clientWidth - 16, 1000) * zoom;
+      el.style.width = `${w}px`;
+      el.style.aspectRatio = el.dataset.ratio;
+      observer.unobserve(el); observer.observe(el);
+    });
+  }
+  document.getElementById('zoomIn').onclick = () => { zoom = Math.min(zoom * 1.25, 4); layout(); };
+  document.getElementById('zoomOut').onclick = () => { zoom = Math.max(zoom / 1.25, 0.5); layout(); };
+  (async () => {
+    if (!ok) throw new Error('No document was chosen.');
+    const res = await fetch(src);
+    if (!res.ok) {
+      let text = `HTTP ${res.status}`;
+      try { text = (await res.json()).message || text; } catch {}
+      throw new Error(text);
+    }
+    doc = await pdfjs.getDocument({ data: new Uint8Array(await res.arrayBuffer()) }).promise;
+    msg.remove();
+    for (let n = 1; n <= doc.numPages; n++) {
+      const vp = (await doc.getPage(n)).getViewport({ scale: 1 });
+      const el = document.createElement('div');
+      el.className = 'page';
+      el.dataset.n = n;
+      el.dataset.ratio = `${vp.width} / ${vp.height}`;
+      pagesEl.append(el);
+    }
+    layout();
+  })().catch((err) => {
+    msg.innerHTML = `Could not open this document here.<br><small>${String(err.message || err).replace(/[<>&]/g, '')}</small><br><br>KPPP may be busy — try again in a few minutes, or use <b>Download</b>.`;
+  });
+</script>
+</body>
+</html>
