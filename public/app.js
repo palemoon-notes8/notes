@@ -1058,6 +1058,9 @@
     $('liveView').hidden = mode !== 'live';
     $('resultsView').hidden = mode !== 'results';
     $('biddersView').hidden = mode !== 'bidders';
+    $('downloadsView').hidden = mode !== 'downloads';
+    document.querySelector('.search').hidden = mode === 'downloads';
+    if (mode === 'downloads') loadDownloads();
     $('q').value = mode === 'results' ? R.q : mode === 'bidders' ? B.q : S.q;
     $('q').placeholder = mode === 'results' ? 'Search results by work, department, town or contractor name…'
       : mode === 'bidders' ? 'Search a bidder or firm name…' : 'Search by work, tender number, department or town…';
@@ -1070,7 +1073,6 @@
       });
     }
     if (mode === 'results') {
-      loadDownloads();
       $('rTitle').textContent = 'Loading results…';
       loadResults().then(() => applyResults()).catch((err) => {
         $('rTitle').textContent = 'Results are not available yet';
@@ -1301,7 +1303,6 @@
       idx = r.ok ? await r.json() : null;
     } catch { idx = null; }
     if (!idx?.files?.length) {
-      box.hidden = false;
       box.innerHTML = '<h3>Download all past works results (Excel)</h3><p class="muted-p">All awarded works tenders since May 2023 are being collected. The Excel files will appear here in a few hours.</p>';
       downloadsLoaded = false;
       return;
@@ -1311,7 +1312,6 @@
     const rates = idx.files.find((f) => f.file === 'works-item-rates.xlsx');
     const bidderDb = idx.files.find((f) => f.file === 'works-bidders.xlsx');
     if (bidderDb) $('bDownload').innerHTML = `<a class="btn" href="/downloads/${esc(bidderDb.file)}" download>${dlIcon} Bidder database (Excel, ${mb(bidderDb.bytes)})</a>`;
-    box.hidden = false;
     box.innerHTML = `<h3>Download all past works results (Excel) <span class="count">${fmtInt(idx.tenders)} tenders</span></h3>
       <p class="muted-p">Every awarded works tender${idx.from ? ` from ${esc(shortDate.format(new Date(idx.from)))} ${esc(idx.from.slice(0, 4))}` : ''} with the winner and every bidder's amount.${idx.complete ? '' : ' <b>Still collecting older tenders</b> — the files grow every few hours.'}</p>
       <div class="dl-list">
@@ -1319,13 +1319,15 @@
         ${rates ? `<a class="dl rates" href="/downloads/${esc(rates.file)}" download><b>Item rates</b><span>${fmtInt(rates.items)} BOQ items · past winning rates</span><small>${mb(rates.bytes)}</small></a>` : ''}
         ${bidderDb ? `<a class="dl rates" href="/downloads/${esc(bidderDb.file)}" download><b>Bidder database</b><span>${fmtInt(bidderDb.bidders)} bidders · bids &amp; wins by year, district, department, type of work</span><small>${mb(bidderDb.bytes)}</small></a>` : ''}
       </div>
-      <p class="note">Each year file has two sheets: <b>Tenders</b> (one row per tender) and <b>All bids</b> (one row per bidder). New tenders are compared with this full history on their tender page.</p>
-      ${(idx.itemwise || []).length ? `<h3 style="margin-top:18px">Item-wise bids — every bidder's rate for every item</h3>
+      <p class="note">Each year file has two sheets: <b>Tenders</b> (one row per tender) and <b>All bids</b> (one row per bidder). New tenders are compared with this full history on their tender page.</p>`;
+    const iw = $('iwDownloads');
+    iw.innerHTML = (idx.itemwise || []).length ? `<h3>Item-wise bids — every bidder's rate for every item <span class="count">${fmtInt(idx.itemwise.length)} months</span></h3>
         <p class="muted-p">One Excel file per month: each BOQ item of each tender with the department's rate and the L1 (winner) to L5 bidders' names, quoted rates and % against the department's rate.</p>
         ${Object.entries(idx.itemwise.reduce((acc, f) => { (acc[f.month.slice(0, 4)] ||= []).push(f); return acc; }, {})).sort((a, b) => b[0].localeCompare(a[0])).map(([year, files]) => `
           <details class="iw-year"${year === String(new Date().getFullYear()) ? ' open' : ''}><summary><b>${esc(year)}</b> <span class="count">${files.length} months</span></summary>
             <div class="dl-list">${files.sort((a, b) => b.month.localeCompare(a.month)).map((f) => `<a class="dl" href="/downloads/${esc(f.file)}" download><b>${esc(new Date(f.month + '-01T00:00:00').toLocaleString('en-IN', { month: 'long' }))}</b><span>${fmtInt(f.tenders)} tenders · ${fmtInt(f.rows)} items</span><small>${mb(f.bytes)}</small></a>`).join('')}</div>
-          </details>`).join('')}` : ''}`;
+          </details>`).join('')}`
+      : `<h3>Item-wise bids — every bidder's rate for every item</h3><p class="muted-p">The monthly Excel files are being rebuilt and will appear here after tonight's history update.</p>`;
   }
 
   function filterResults(f) {

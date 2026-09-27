@@ -179,6 +179,8 @@ td.my input:focus{outline:2px solid var(--brand);border-color:transparent}
 }
 
 .downloads{margin-bottom:14px}
+.downloads h3{margin-top:0}
+.search[hidden]{display:none}
 .dl-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-top:12px}
 .dl{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2);text-decoration:none;color:var(--ink)}
 .dl:hover{border-color:var(--brand)}
@@ -548,7 +550,7 @@ dialog.wide{width:min(720px,calc(100% - 24px));max-height:calc(100vh - 40px)}
 @media (max-width:760px){
   .pricing{grid-template-columns:1fr}
   .modes{margin-top:16px;width:100%}
-  .modes button{flex:1;padding:0 8px;font-size:13px}
+  .modes button{flex:1;padding:0 4px;font-size:12.5px}
   .insights{margin-top:-50px;gap:6px}
   .grid.list .card{grid-template-columns:1fr;grid-template-areas:"top" "title" "meta" "fig";padding-right:52px}
   .grid.list .card h3{-webkit-line-clamp:2}
