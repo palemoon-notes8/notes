@@ -252,6 +252,19 @@ def full_view(session, category, nit):
     return full.json() or {}
 
 
+# The parts of KPPP's full view the tender page shows (EMD, fee, dates, eligibility, contact),
+# kept with the award so opening a past result never has to ask KPPP again. The big estimate
+# list is left out: the award page already has every item's rates.
+TENDER_PARTS = ("noticeInvitingTenderDTO", "tenderSchedule", "tenderAddress", "generalCriterionList",
+                "tenderEligibilityCriterionList", "technicalCriterionList", "tenderTechnicalCriterionList",
+                "tenderCriterionDocumentList")
+CONDITIONS_PER_RUN = int(os.getenv("RESULTS_CONDITIONS_PER_RUN", "40"))
+
+
+def tender_parts(detail):
+    return {k: detail[k] for k in TENDER_PARTS if detail.get(k)}
+
+
 def award_page(nit, category, detail, bidders, items):
     """What the award page shows beyond the results list: timeline, officers and item rates."""
     award = detail.get("tenderAwardDatesDTO") or {}
@@ -289,6 +302,7 @@ def award_page(nit, category, detail, bidders, items):
         "pbg": pbg,
         "bidders": bidders,
         "items": items,
+        "tender": tender_parts(detail),
     }
     return {k: v for k, v in record.items() if v not in (None, "", [], {})}
 
@@ -431,7 +445,18 @@ def main():
                       key=lambda r: r.get("awarded") or "", reverse=True)
     todo = todo[:MAX_LOOKUPS]
     backfill = backfill[:max(0, MAX_LOOKUPS - len(todo))]
-    print(f"{len(todo)} new results to look up, {len(backfill)} award pages to backfill", flush=True)
+    # Award pages saved before tender conditions were kept get them a few at a time (newest first).
+    def lacks_conditions(nit):
+        try:
+            return "tender" not in json.loads(award_path(nit).read_text(encoding="utf-8"))
+        except Exception:
+            return False
+    conditions = [r for r in sorted(cache.values(), key=lambda r: r.get("awarded") or "", reverse=True)
+                  if award_path(r["nit"]).exists() and lacks_conditions(r["nit"])]
+    waiting = len(conditions)
+    conditions = conditions[:max(0, min(CONDITIONS_PER_RUN, MAX_LOOKUPS - len(todo) - len(backfill)))]
+    print(f"{len(todo)} new results to look up, {len(backfill)} award pages to backfill, "
+          f"{len(conditions)} of {waiting} past tenders to add conditions to", flush=True)
 
     ok = failed = 0
 
@@ -447,9 +472,12 @@ def main():
         kind, cat, payload = job
         if kind == "new":
             return lookup(session, cat, payload)
+        if kind == "conditions":
+            return {"nit": payload["nit"], "tender": tender_parts(full_view(session, cat, payload["nit"]))}
         return backfill_award(session, payload, old_items.get(payload["nit"]))
 
-    jobs = [("new", cat, raw) for cat, raw in todo] + [("award", r["cat"], r) for r in backfill]
+    jobs = ([("new", cat, raw) for cat, raw in todo] + [("award", r["cat"], r) for r in backfill]
+            + [("conditions", r["cat"], r) for r in conditions])
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:
         futures = [pool.submit(guarded, job) for job in jobs]
         for future in as_completed(futures):
@@ -459,6 +487,14 @@ def main():
                 failed += 1
                 continue
             if done is None:
+                continue
+            if isinstance(done, dict):
+                if done["tender"]:
+                    path = award_path(done["nit"])
+                    page = json.loads(path.read_text(encoding="utf-8"))
+                    page["tender"] = done["tender"]
+                    path.write_text(json.dumps(page, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+                    ok += 1
                 continue
             record, page = done
             cache[record["nit"]] = record

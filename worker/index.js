@@ -213,6 +213,17 @@ async function storedDetail(category, nitId) {
   }
 }
 
+async function savedConditions(nitId) {
+  try {
+    const upstream = await fetch(`${REPO_RAW}/main/data/awards/${nitId}.json`, { cf: { cacheTtl: 3600, cacheEverything: true } });
+    if (!upstream.ok) return null;
+    const award = await upstream.json();
+    return award.tender && award.tender.noticeInvitingTenderDTO ? award.tender : null;
+  } catch {
+    return null;
+  }
+}
+
 async function tenderDetail(category, nitId, ctx) {
   const section = SECTIONS[category];
   if (!section || !/^\d+$/.test(nitId)) return json({ success: false, message: 'Unknown tender.' }, 400);
@@ -226,6 +237,15 @@ async function tenderDetail(category, nitId, ctx) {
     shaped = { ...shapeTender(category, stored.full, [], nitId), checkedAt: stored.fetched || null, changes: list(stored.changes), past: stored.past || null };
     delete shaped.files;
     const response = json(shaped, 200, 'public, max-age=600, s-maxage=600');
+    ctx.waitUntil(cache.put(cacheKey, response.clone()));
+    return response;
+  }
+  // A past result: its conditions were saved with the award (collect_results.py), no need to ask KPPP.
+  const saved = await savedConditions(nitId);
+  if (saved) {
+    shaped = { ...shapeTender(category, saved, [], nitId), checkedAt: null };
+    delete shaped.files;
+    const response = json(shaped, 200, 'public, max-age=86400, s-maxage=86400');
     ctx.waitUntil(cache.put(cacheKey, response.clone()));
     return response;
   }
