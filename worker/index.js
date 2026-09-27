@@ -1,5 +1,7 @@
 'use strict';
 
+import { DurableObject } from 'cloudflare:workers';
+
 // Hourly collector commits fresh data files here; deployed assets are the fallback.
 const RAW_BASES = [
   'https://raw.githubusercontent.com/palemoon-notes8/notes/main/public'
@@ -521,6 +523,40 @@ async function handleLogin(request) {
   });
 }
 
+// Your own lists (saved tenders and results, notes, watched contractors, profile), kept in your
+// Cloudflare account so every phone and computer you sign in on shows the same ones.
+const PREF_KEYS = new Set(['kppp_saved_tenders', 'tenderone_saved_results', 'tenderone_notes', 'tenderone_watch', 'tenderone_profile']);
+export class Prefs extends DurableObject {
+  async read() {
+    return (await this.ctx.storage.get('prefs')) || {};
+  }
+  // Newest change wins, one list at a time.
+  async merge(incoming) {
+    const current = await this.read();
+    for (const [key, entry] of Object.entries(incoming)) {
+      if (!current[key] || entry.t > current[key].t) current[key] = entry;
+    }
+    await this.ctx.storage.put('prefs', current);
+    return current;
+  }
+}
+
+async function prefs(request, env) {
+  if (!env.PREFS) return json({ success: false, message: 'Sync is not set up.' }, 503);
+  const stub = env.PREFS.get(env.PREFS.idFromName('me'));
+  if (request.method === 'GET') return json(await stub.read());
+  if (request.method !== 'PUT') return json({ success: false, message: 'Method not allowed.' }, 405);
+  const text = await request.text();
+  if (text.length > 1_000_000) return json({ success: false, message: 'Too large.' }, 413);
+  let body;
+  try { body = JSON.parse(text); } catch { return json({ success: false, message: 'Bad data.' }, 400); }
+  const clean = {};
+  for (const [key, entry] of Object.entries(body || {})) {
+    if (PREF_KEYS.has(key) && entry && Number.isFinite(entry.t) && 'v' in entry) clean[key] = { t: entry.t, v: entry.v };
+  }
+  return json(await stub.merge(clean));
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -537,6 +573,7 @@ export default {
     }
     const allowed = OPEN_PATHS.has(url.pathname) || (await signedIn(request));
     if (!allowed) return notFound();
+    if (url.pathname === '/api/prefs') return prefs(request, env);
     if (request.method !== 'GET' && request.method !== 'HEAD') return json({ success: false, message: 'Method not allowed.' }, 405);
 
     if (['/tenders-lite.json', '/results-lite.json', '/rates-lite.json'].includes(url.pathname)) {

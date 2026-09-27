@@ -15,8 +15,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/app.css?v=20260927f">
-<script src="/app.js?v=20260927e" defer></script>
+<link rel="stylesheet" href="/app.css?v=20260927g">
+<script src="/app.js?v=20260927f" defer></script>
 </head>
 <body>
 <header class="hero">
@@ -48,6 +48,8 @@
       <button type="button" role="tab" data-mode="live" aria-selected="true">Live tenders</button>
       <button type="button" role="tab" data-mode="results" aria-selected="false">Past results</button>
       <button type="button" role="tab" data-mode="bidders" aria-selected="false">Bidders</button>
+      <button type="button" role="tab" data-mode="watching" aria-selected="false">Watching</button>
+      <button type="button" role="tab" data-mode="charts" aria-selected="false">Charts</button>
       <button type="button" role="tab" data-mode="downloads" aria-selected="false">Downloads</button>
     </div>
     <label class="search">
@@ -178,19 +180,30 @@
       </button>
     </div>
   </section>
-  <section class="panel watch" id="rWatch" hidden></section>
-  <details class="panel charts" id="rCharts">
-    <summary><h3>Charts &amp; trends for these results</h3><span class="note">Discount by month, districts, departments, busiest winners</span></summary>
-    <div id="rChartsBody"></div>
-  </details>
-  <details class="panel charts" id="rQuick">
-    <summary><h3>⚡ Quick tenders</h3><span class="note">Published and closed fast: which offices, which months, who wins</span></summary>
-    <div id="rQuickBody"><p class="muted-p">Loading…</p></div>
-  </details>
   <div class="results-head"><h2 id="rTitle">Loading results…</h2><p class="note" style="margin:0">Recent works winners and bid amounts published by KPPP. Search a contractor's name to see their bids.</p></div>
   <div class="people" id="rPeople" hidden></div>
   <section class="rlist" id="rList"></section>
   <div class="more"><button class="btn" id="rMore" type="button" hidden>Show more results</button></div>
+</main>
+
+<main class="wrap" id="watchView" hidden>
+  <section class="panel watch" id="rWatch"><h3>Contractors I watch</h3><p class="muted-p">Loading…</p></section>
+</main>
+
+<main class="wrap" id="chartsView" hidden>
+  <section class="filters">
+    <div class="filter-row">
+      <div class="select"><select id="cDistrict" aria-label="District"><option value="">All districts</option></select></div>
+    </div>
+  </section>
+  <section class="panel charts" id="rCharts">
+    <h3>Charts &amp; trends</h3><p class="note">Discount by month, districts, departments, busiest winners — from all awarded works tenders.</p>
+    <div id="rChartsBody"><p class="muted-p">Loading…</p></div>
+  </section>
+  <section class="panel charts" id="rQuick">
+    <h3>⚡ Quick tenders</h3><p class="note">Published and closed fast: which offices, which months, who wins.</p>
+    <div id="rQuickBody"><p class="muted-p">Loading…</p></div>
+  </section>
 </main>
 
 <main class="wrap" id="downloadsView" hidden>

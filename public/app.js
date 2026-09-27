@@ -76,8 +76,86 @@
     try { return JSON.parse(localStorage.getItem(key) || 'null') ?? fallback; } catch { return fallback; }
   }
   function writeJSON(key, value) {
+    if (SYNC_KEYS.includes(key)) queueSync(key, value);
     try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
   }
+  // ---------- Your lists, the same on every device (/api/prefs) ----------
+  const SYNC_KEYS = [SAVED_KEY, RSAVED_KEY, NOTES_KEY, WATCH_KEY, PROFILE_KEY];
+  const SYNC_META = 'tenderone_sync_meta'; // when each list last changed on this device
+  let syncPending = {}, syncTimer = null;
+  function stamp(key, t) {
+    const meta = readJSON(SYNC_META, {});
+    meta[key] = t;
+    try { localStorage.setItem(SYNC_META, JSON.stringify(meta)); } catch {}
+  }
+  function queueSync(key, value) {
+    const t = Date.now();
+    stamp(key, t);
+    syncPending[key] = { t, v: JSON.parse(JSON.stringify(value ?? null)) };
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(pushSync, 800);
+  }
+  async function pushSync() {
+    const body = syncPending;
+    syncPending = {};
+    if (!Object.keys(body).length) return;
+    try {
+      const r = await fetch('/api/prefs', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error(r.status);
+    } catch {
+      syncPending = { ...body, ...syncPending };
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(pushSync, 30000);
+    }
+  }
+  // First sync of a device that already had lists: keep both sides.
+  function mergeLists(key, local, server) {
+    if (key === NOTES_KEY) return { ...(server || {}), ...(local || {}) };
+    if (key === PROFILE_KEY) return server ?? local;
+    if (key === WATCH_KEY) {
+      const out = [...(server || [])];
+      for (const w of local || []) if (!out.some((x) => x.key === w.key)) out.push(w);
+      return out;
+    }
+    return [...new Set([...(server || []), ...(local || [])])];
+  }
+  function useList(key, value) {
+    if (key === SAVED_KEY) { S.saved = new Set(value || []); $('savedCount').textContent = S.saved.size; }
+    if (key === RSAVED_KEY) { R.saved = new Set(value || []); $('rSavedCount').textContent = R.saved.size; }
+    if (key === NOTES_KEY) { for (const k of Object.keys(notes)) delete notes[k]; Object.assign(notes, value || {}); }
+    if (key === WATCH_KEY) watch = Array.isArray(value) ? value : [];
+    if (key === PROFILE_KEY) S.profile = value || null;
+  }
+  async function pullSync() {
+    let server;
+    try {
+      const r = await fetch('/api/prefs', { cache: 'no-store' });
+      if (!r.ok) return;
+      server = await r.json();
+    } catch { return; }
+    const meta = readJSON(SYNC_META, {});
+    let changed = false;
+    for (const key of SYNC_KEYS) {
+      const remote = server[key];
+      const localT = meta[key] || 0;
+      let local = null;
+      try { local = JSON.parse(localStorage.getItem(key) || 'null'); } catch {}
+      if (remote && remote.t > localT) {
+        const value = localT === 0 && local !== null ? mergeLists(key, local, remote.v) : remote.v;
+        try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+        useList(key, value);
+        changed = true;
+        if (value !== remote.v) queueSync(key, value); else stamp(key, remote.t);
+      } else if (local !== null && localT >= (remote?.t || 0) && (localT === 0 || localT > (remote?.t || 0))) {
+        queueSync(key, local);
+      }
+    }
+    if (!changed) return;
+    if (S.all.length) apply({ keepScroll: true });
+    if (R.all && R.mode === 'results') applyResults({ keepPage: true });
+    if (R.mode === 'watching') renderWatch();
+  }
+
 
   // ---------- Theme ----------
   function applyTheme(theme) {
@@ -1055,12 +1133,28 @@
   function setMode(mode) {
     R.mode = mode;
     document.querySelectorAll('[data-mode]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.mode === mode)));
+    document.querySelector(`[data-mode="${mode}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     $('liveView').hidden = mode !== 'live';
     $('resultsView').hidden = mode !== 'results';
     $('biddersView').hidden = mode !== 'bidders';
     $('downloadsView').hidden = mode !== 'downloads';
-    document.querySelector('.search').hidden = mode === 'downloads';
+    $('watchView').hidden = mode !== 'watching';
+    $('chartsView').hidden = mode !== 'charts';
+    document.querySelector('.search').hidden = ['downloads', 'watching', 'charts'].includes(mode);
     if (mode === 'downloads') loadDownloads();
+    if (mode === 'watching') {
+      renderWatch();
+      loadResults().then(() => { if (R.mode === 'watching') renderWatch(); }).catch(() => {});
+    }
+    if (mode === 'charts') {
+      loadResults().then(() => {
+        const d = $('cDistrict'), current = d.value;
+        d.innerHTML = $('rDistrict').innerHTML;
+        d.value = current;
+        renderCharts();
+      }).catch(() => { $('rChartsBody').innerHTML = '<p class="muted-p">Past results are still being collected.</p>'; });
+      renderQuickPanel();
+    }
     $('q').value = mode === 'results' ? R.q : mode === 'bidders' ? B.q : S.q;
     $('q').placeholder = mode === 'results' ? 'Search results by work, department, town or contractor name…'
       : mode === 'bidders' ? 'Search a bidder or firm name…' : 'Search by work, tender number, department or town…';
@@ -1253,7 +1347,7 @@
       box.innerHTML = '<p class="muted-p">These figures appear after tonight\'s history update.</p>';
       return;
     }
-    const district = $('rDistrict').value;
+    const district = $('cDistrict').value;
     const offices = q.offices.filter((o) => !district || o[1] === district);
     const quick = q.quick.filter((x) => !district || x[4] === district);
     const maxShare = Math.max(...q.months.map(([, n, , q8]) => (n ? q8 / n : 0)));
@@ -1391,9 +1485,6 @@
     $('rList').innerHTML = '';
     moreResults();
     while (R.shown < Math.min(keep, R.filtered.length)) moreResults();
-    renderWatch();
-    if ($('rCharts').open) renderCharts();
-    if ($('rQuick').open) renderQuickPanel();
   }
 
   // "NAME (1)( FIRM NAME )" → firm and person, the way KPPP writes bidders.
@@ -1966,7 +2057,7 @@
   function noteOf(key) { return notes[key] || ''; }
   function notePanel(key) {
     return `<section class="panel notes"><h3>My notes</h3>
-      <textarea class="note-box" data-note="${esc(key)}" rows="3" placeholder="Private notes — site visit, material rates, who to call… Saved on this device.">${esc(noteOf(key))}</textarea>
+      <textarea class="note-box" data-note="${esc(key)}" rows="3" placeholder="Private notes — site visit, material rates, who to call… Synced to all your devices.">${esc(noteOf(key))}</textarea>
       <small class="note-saved" aria-live="polite"></small></section>`;
   }
   function bindNote(root) {
@@ -2152,12 +2243,17 @@
       b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); b.textContent = on ? '👁 Watching' : '👁 Watch';
     });
     toast(on ? `Watching ${splitName(name).firm}` : 'Stopped watching');
-    if (R.all) applyResults({ keepPage: true });
+    if (R.all && R.mode === 'results') applyResults({ keepPage: true });
+    if (R.mode === 'watching') renderWatch();
   }
   function renderWatch() {
     const box = $('rWatch');
     if (!box) return;
-    if (!watch.length) { box.hidden = true; return; }
+    if (!watch.length) {
+      box.innerHTML = '<h3>Contractors I watch</h3><p class="muted-p">You are not watching anyone yet. Open any contractor (from Past results or Bidders) and tap “👁 Watch” — they will appear here on all your devices.</p>';
+      return;
+    }
+    if (!R.all) { box.innerHTML = `<h3>Contractors I watch <span class="count">${watch.length}</span></h3><p class="muted-p">Loading their bids…</p>`; return; }
     const stats = watch.map((w) => {
       let bids = 0, wins = 0, fresh = 0, last = 0;
       for (const r of R.all || []) {
@@ -2169,7 +2265,6 @@
       }
       return { ...w, bids, wins, fresh, last };
     });
-    box.hidden = false;
     box.innerHTML = `<h3>Contractors I watch <span class="count">${watch.length}</span></h3>
       <div class="watch-list">${stats.map((w) => `<button type="button" class="watch-card" data-win="${esc(w.name)}">
         <b>${esc(splitName(w.name).firm)}</b>
@@ -2272,7 +2367,8 @@
   // ---------- Charts for the filtered past results ----------
   function renderCharts() {
     const box = $('rChartsBody');
-    const list = R.filtered;
+    const district = $('cDistrict').value;
+    const list = (R.all || []).filter((r) => !district || r.district === district);
     if (!list.length) { box.innerHTML = '<p class="muted-p">No results to chart.</p>'; return; }
     const byMonth = new Map();
     for (const r of list) {
@@ -2435,10 +2531,11 @@
   document.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
   for (const id of ['rCat', 'rDistrict', 'rDept', 'rWork', 'rSort', 'rPeriod', 'rValue', 'rBidderCount']) $(id).addEventListener('change', () => applyResults());
   $('rSavedBtn').addEventListener('click', () => { R.savedOnly = !R.savedOnly; applyResults(); });
-  $('rCharts').addEventListener('toggle', () => { if ($('rCharts').open && R.all) renderCharts(); });
-  $('rQuick').addEventListener('toggle', () => { if ($('rQuick').open) renderQuickPanel(); });
+  $('cDistrict').addEventListener('change', () => { $('cDistrict').classList.toggle('set', Boolean($('cDistrict').value)); if (R.all) renderCharts(); renderQuickPanel(); });
   $('rExport').addEventListener('click', () => { if (R.filtered.length) exportResults(); else toast('No results to export'); });
   $('rSavedCount').textContent = R.saved.size;
+  pullSync();
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pullSync(); });
   // Bigger text for easier reading, remembered on this device.
   const applyText = (big) => { document.documentElement.classList.toggle('big-text', big); $('textBtn').setAttribute('aria-pressed', String(big)); };
   applyText(readJSON(TEXT_KEY, false));
@@ -2450,6 +2547,12 @@
   $('rReset').addEventListener('click', () => {
     for (const id of ['rCat', 'rDistrict', 'rDept', 'rWork', 'rPeriod', 'rValue', 'rBidderCount']) $(id).value = '';
     $('rSort').value = 'new'; R.q = ''; R.savedOnly = false; $('q').value = ''; applyResults();
+  });
+  for (const view of ['watchView', 'chartsView']) $(view).addEventListener('click', (e) => {
+    const aw = e.target.closest('[data-award]');
+    if (aw) { e.preventDefault(); openAward(aw.dataset.award); return; }
+    const w = e.target.closest('[data-win]');
+    if (w) { e.preventDefault(); openContractor(w.dataset.win); }
   });
   $('resultsView').addEventListener('click', (e) => {
     if (e.target.closest('[data-rsave], [data-rdl]')) return;

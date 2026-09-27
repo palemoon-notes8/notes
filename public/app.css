@@ -262,6 +262,9 @@ html.big-text body{zoom:1.15}
 .watch-card span{font-size:12.5px;color:var(--muted);font-weight:600}
 .watch-card em{font-style:normal;font-size:12px;font-weight:800;color:var(--ok)}
 .charts{margin-bottom:14px}
+.charts>h3{margin:0}
+.charts>.note{margin:4px 0 10px}
+.watch>h3{margin-top:0}
 .charts>summary{list-style:none;cursor:pointer;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px}
 .charts>summary::-webkit-details-marker{display:none}
 .charts>summary h3{margin:0}
@@ -549,8 +552,9 @@ dialog.wide{width:min(720px,calc(100% - 24px));max-height:calc(100vh - 40px)}
 }
 @media (max-width:760px){
   .pricing{grid-template-columns:1fr}
-  .modes{margin-top:16px;width:100%}
-  .modes button{flex:1;padding:0 4px;font-size:12.5px}
+  .modes{margin-top:16px;max-width:100%;overflow-x:auto;scrollbar-width:none}
+  .modes::-webkit-scrollbar{display:none}
+  .modes button{flex:none;padding:0 12px;font-size:13px;white-space:nowrap}
   .insights{margin-top:-50px;gap:6px}
   .grid.list .card{grid-template-columns:1fr;grid-template-areas:"top" "title" "meta" "fig";padding-right:52px}
   .grid.list .card h3{-webkit-line-clamp:2}

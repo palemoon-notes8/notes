@@ -9,6 +9,11 @@
     // Always invoke the Worker first so /api/* never falls through to static HTML.
     "run_worker_first": true
   },
+  // Private store for your saved lists, synced across your devices (see Prefs in worker/index.js).
+  "durable_objects": {
+    "bindings": [{ "name": "PREFS", "class_name": "Prefs" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Prefs"] }],
   "observability": {
     "enabled": true
   }
