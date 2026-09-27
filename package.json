@@ -1,0 +1,12 @@
+{
+  "name": "karnataka-tender-intelligence",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev:cloudflare": "wrangler dev",
+    "deploy:cloudflare": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.102.0"
+  }
+}

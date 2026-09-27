@@ -1,0 +1,50 @@
+name: Scheduler
+
+# GitHub's own timers (cron) are often hours late or skipped for small projects, so this job starts
+# the collectors on time itself, then starts a fresh copy of itself before it reaches GitHub's
+# 6-hour limit. The cron below only restarts it if the chain ever breaks.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "7 */3 * * *"
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: scheduler
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 345
+    steps:
+      - name: Start collectors on time
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          start=$(date +%s)
+          # When each collector last started; negative offsets space out the first runs.
+          last_tenders=$(( start - 3600 ))          # now
+          last_details=$(( start - 3600 + 1200 ))   # in 20 min (after the tender list)
+          last_results=$(( start - 7200 + 1800 ))   # in 30 min
+          history_started=0                         # once a day, at 22:00 UTC (early morning in India)
+          run() { gh workflow run "$1" -R "$REPO" --ref main && echo "$(date -u +%H:%M) started $1"; }
+          while [ $(( $(date +%s) - start )) -lt 19800 ]; do
+            now=$(date +%s)
+            if [ $(( now - last_tenders )) -ge 3600 ]; then run collect-kppp.yml && last_tenders=$now; fi
+            if [ $(( now - last_details )) -ge 3600 ]; then run collect-details.yml && last_details=$now; fi
+            if [ $(( now - last_results )) -ge 7200 ]; then run collect-results.yml && last_results=$now; fi
+            if [ "$(date -u +%H)" = "22" ] && [ "$history_started" = 0 ]; then run collect-history.yml && history_started=1; fi
+            sleep 240
+          done
+
+      - name: Continue in a fresh run
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: gh workflow run scheduler.yml -R "$REPO" --ref main

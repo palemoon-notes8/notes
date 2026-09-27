@@ -1,0 +1,124 @@
+name: Collect KPPP Works History
+
+on:
+  workflow_dispatch:
+    inputs:
+      focus:
+        description: "Catch-up: part number (0-3) whose pages all four jobs share. Leave empty for a normal run."
+        required: false
+        default: ""
+  schedule:
+    # Backup only; the scheduler starts it once a day.
+    - cron: "10 22 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect-history
+  cancel-in-progress: false
+
+jobs:
+  # Collectors can be paused (to let KPPP rest) by putting a UTC time in .github/pause-until.
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.check.outputs.go }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: .github
+      - id: check
+        run: |
+          until=$(cat .github/pause-until 2>/dev/null || true)
+          if [ -n "$until" ] && [ "$(date -u +%s)" -lt "$(date -u -d "$until" +%s)" ]; then
+            echo "Paused until $until to let KPPP rest."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  collect:
+    needs: gate
+    if: needs.gate.outputs.go == 'true'
+    # Four parts at once, each with 6 lookups in parallel: fast, but gentle enough for KPPP.
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [0, 1, 2, 3]
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: Open History
+        run: |
+          mkdir -p history
+          if git fetch --depth 1 origin history; then
+            git archive FETCH_HEAD results | tar -x -C history || true
+            git show FETCH_HEAD:state.json > history/state.json 2>/dev/null || rm -f history/state.json
+          fi
+      - name: Collect Part
+        env:
+          HISTORY_TIME_BUDGET: "18000"
+          # Four jobs run at once, so each goes slower: together about one request a second.
+          KPPP_MIN_INTERVAL: "4"
+          HISTORY_FOCUS: ${{ github.event.inputs.focus }}
+        run: python collect_history.py collect history part-${{ matrix.part }} ${{ matrix.part }} 4
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: part-${{ matrix.part }}
+          path: part-${{ matrix.part }}
+          if-no-files-found: ignore
+          retention-days: 3
+
+  build:
+    needs: [gate, collect]
+    if: always() && needs.gate.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          path: parts
+      - name: Open History
+        # The history lives in the "history" branch, which holds only the latest snapshot.
+        run: |
+          if git fetch --depth 1 origin history; then
+            git worktree add --detach history FETCH_HEAD
+          else
+            git worktree add --detach history HEAD
+            find history -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          fi
+      - name: Merge And Build Excel Files
+        env:
+          ITEMWISE_OUT: itemwise-out
+        run: python collect_history.py build history $(ls -d parts/part-* 2>/dev/null)
+      - name: Upload Item-wise Excel Files
+        # Big monthly files go to a GitHub release (downloads), not into the repository.
+        if: hashFiles('itemwise-out/*.xlsx') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view itemwise -R "$GITHUB_REPOSITORY" > /dev/null 2>&1 || \
+            gh release create itemwise -R "$GITHUB_REPOSITORY" --title "Item-wise bids" --notes "Every bidder's rate for every BOQ item, one Excel file per month. Updated automatically."
+          gh release upload itemwise itemwise-out/*.xlsx -R "$GITHUB_REPOSITORY" --clobber
+      - name: Save History Snapshot
+        working-directory: history
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan "snapshot-${GITHUB_RUN_ID}"
+          git rm -rq --cached . > /dev/null 2>&1 || true
+          git add -A
+          git commit -qm "Works history snapshot [skip ci]"
+          git push -f origin HEAD:refs/heads/history

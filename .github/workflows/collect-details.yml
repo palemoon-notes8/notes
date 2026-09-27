@@ -1,0 +1,85 @@
+name: Collect KPPP Tender Details
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Every hour, after the tender list update: new tenders first, then refreshes.
+    - cron: "25 * * * *"
+  push:
+    branches:
+      - main
+    paths:
+      - "collect_details.py"
+      - ".github/workflows/collect-details.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect-details
+  cancel-in-progress: false
+
+jobs:
+  # Collectors can be paused (to let KPPP rest) by putting a UTC time in .github/pause-until.
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.check.outputs.go }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: .github
+      - id: check
+        run: |
+          until=$(cat .github/pause-until 2>/dev/null || true)
+          if [ -n "$until" ] && [ "$(date -u +%s)" -lt "$(date -u -d "$until" +%s)" ]; then
+            echo "Paused until $until to let KPPP rest."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  collect:
+    needs: gate
+    if: needs.gate.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Open Saved Details
+        # The copies live in the "data" branch, which holds only the latest snapshot.
+        run: |
+          if git fetch --depth 1 origin data; then
+            git worktree add --detach store FETCH_HEAD
+          else
+            git worktree add --detach store HEAD
+            find store -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          fi
+
+      - name: Collect Tender Details
+        run: |
+          python collect_details.py store
+
+      - name: Save Details Snapshot
+        working-directory: store
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # One commit that replaces the last, so the branch never grows.
+          git checkout --orphan "snapshot-${GITHUB_RUN_ID}"
+          git rm -rq --cached . > /dev/null 2>&1 || true
+          git add -A
+          git commit -qm "Tender details snapshot [skip ci]"
+          git push -f origin HEAD:refs/heads/data

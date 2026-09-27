@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "santoshpawar863006-ctrl",
+  "main": "./worker/index.js",
+  "compatibility_date": "2026-08-12",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    // Always invoke the Worker first so /api/* never falls through to static HTML.
+    "run_worker_first": true
+  },
+  "observability": {
+    "enabled": true
+  }
+}

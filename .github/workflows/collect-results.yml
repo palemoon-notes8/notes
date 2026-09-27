@@ -1,0 +1,77 @@
+name: Collect KPPP Results
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Every 2 hours: newly awarded tenders first, then older ones.
+    - cron: "37 */2 * * *"
+  push:
+    branches:
+      - main
+    paths:
+      - "collect_results.py"
+      - ".github/workflows/collect-results.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect-results
+  cancel-in-progress: false
+
+jobs:
+  # Collectors can be paused (to let KPPP rest) by putting a UTC time in .github/pause-until.
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.check.outputs.go }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: .github
+      - id: check
+        run: |
+          until=$(cat .github/pause-until 2>/dev/null || true)
+          if [ -n "$until" ] && [ "$(date -u +%s)" -lt "$(date -u -d "$until" +%s)" ]; then
+            echo "Paused until $until to let KPPP rest."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  collect:
+    needs: gate
+    if: needs.gate.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Collect Awarded Tender Results
+        run: |
+          python collect_results.py
+
+      - name: Commit Results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data public/results-lite.json public/rates-lite.json
+          if git diff --cached --quiet; then
+            echo "No new results."
+          else
+            # [skip ci]: the website reads this data straight from GitHub, so no redeploy is needed.
+            git commit -m "Update KPPP results [skip ci]"
+            git pull --rebase origin main
+            git push origin main
+          fi

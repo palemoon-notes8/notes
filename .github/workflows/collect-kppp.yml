@@ -1,0 +1,207 @@
+name: Collect KPPP Tenders
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    - cron: "0 * * * *"
+
+  push:
+    branches:
+      - main
+    paths:
+      - "fetch_kppp.py"
+      - "fix_financial_fields.py"
+      - "enrich_fees.py"
+      - "build_lite.py"
+      - ".github/workflows/collect-kppp.yml"
+
+permissions:
+  contents: write
+
+# Never two tender updates at once: that doubles the load on KPPP.
+concurrency:
+  group: collect-kppp
+  cancel-in-progress: false
+
+jobs:
+  # Collectors can be paused (to let KPPP rest) by putting a UTC time in .github/pause-until.
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.check.outputs.go }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: .github
+      - id: check
+        run: |
+          until=$(cat .github/pause-until 2>/dev/null || true)
+          if [ -n "$until" ] && [ "$(date -u +%s)" -lt "$(date -u -d "$until" +%s)" ]; then
+            echo "Paused until $until to let KPPP rest."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  collect:
+    needs: gate
+    if: needs.gate.outputs.go == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run KPPP Collector
+        env:
+          KPPP_AUTH_TOKEN: ${{ secrets.KPPP_AUTH_TOKEN }}
+          KPPP_PAGE_SIZE: "100"
+          KPPP_MAX_PAGES: "250"
+        run: |
+          python fetch_kppp.py
+
+      - name: Prefer Positive KPPP Financial Fields
+        run: |
+          python fix_financial_fields.py
+
+      - name: Add EMD And Tender Fee From KPPP
+        # Never block the tender update if KPPP's detail endpoint is slow or down.
+        continue-on-error: true
+        timeout-minutes: 20
+        run: |
+          python enrich_fees.py
+
+      - name: Validate Against Last Good Database
+        run: |
+          python - <<'PY'
+          import json
+          import subprocess
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          new_path = Path("public/tenders.json")
+          new = json.loads(new_path.read_text(encoding="utf-8"))
+
+          try:
+              previous_bytes = subprocess.check_output(
+                  ["git", "show", "HEAD:public/tenders.json"],
+                  stderr=subprocess.DEVNULL,
+              )
+              previous = json.loads(previous_bytes.decode("utf-8"))
+          except Exception:
+              previous = {}
+
+          new_total = int(new.get("count") or 0)
+          old_total = int(previous.get("count") or 0)
+          new_counts = new.get("category_counts") or {}
+          old_counts = previous.get("category_counts") or {}
+
+          if new_total <= 0:
+              raise SystemExit("SAFETY STOP: new tender total is zero.")
+
+          if old_total >= 500 and new_total < old_total * 0.60:
+              raise SystemExit(
+                  f"SAFETY STOP: total fell abnormally from {old_total} to {new_total}. "
+                  "Last good database retained."
+              )
+
+          for category in ("WORKS", "GOODS", "SERVICES"):
+              old = int(old_counts.get(category) or 0)
+              current = int(new_counts.get(category) or 0)
+              if current <= 0:
+                  raise SystemExit(f"SAFETY STOP: {category} returned zero.")
+              if old >= 100 and current < old * 0.50:
+                  raise SystemExit(
+                      f"SAFETY STOP: {category} fell abnormally from {old} to {current}. "
+                      "Last good database retained."
+                  )
+
+          if old_total >= 500 and new_total > old_total * 2.50:
+              raise SystemExit(
+                  f"SAFETY STOP: total jumped abnormally from {old_total} to {new_total}. "
+                  "Manual review required."
+              )
+
+          health = {
+              "last_success_at": datetime.now(timezone.utc).isoformat(),
+              "generated_at": new.get("generated_at"),
+              "status": "healthy",
+              "count": new_total,
+              "emd_known": sum(1 for t in new.get("tenders") or [] if (t.get("emd") or 0) > 0),
+              "category_counts": {
+                  "WORKS": int(new_counts.get("WORKS") or 0),
+                  "GOODS": int(new_counts.get("GOODS") or 0),
+                  "SERVICES": int(new_counts.get("SERVICES") or 0),
+              },
+              "previous_count": old_total or None,
+              "guard": {
+                  "zero_protection": True,
+                  "abnormal_drop_protection": True,
+                  "abnormal_jump_protection": True,
+                  "last_good_source": "Git history",
+              },
+          }
+          Path("public/health.json").write_text(
+              json.dumps(health, ensure_ascii=False, indent=2),
+              encoding="utf-8",
+          )
+
+          print("================================")
+          print("COLLECTOR SAFETY CHECK PASSED")
+          print("================================")
+          print("Previous total:", old_total or "n/a")
+          print("Current total :", new_total)
+          print("WORKS         :", health["category_counts"]["WORKS"])
+          print("GOODS         :", health["category_counts"]["GOODS"])
+          print("SERVICES      :", health["category_counts"]["SERVICES"])
+          PY
+
+      - name: Build Website Data File
+        run: |
+          python build_lite.py
+
+      - name: Show Category Counts
+        run: |
+          python - <<'PY'
+          import json
+          with open("public/tenders.json", "r", encoding="utf-8") as f:
+              data = json.load(f)
+          print("================================")
+          print("KPPP TENDER RESULTS")
+          print("================================")
+          print("TOTAL:", data.get("count", 0))
+          counts = data.get("category_counts", {})
+          print("WORKS:", counts.get("WORKS", 0))
+          print("GOODS:", counts.get("GOODS", 0))
+          print("SERVICES:", counts.get("SERVICES", 0))
+          PY
+
+      - name: Commit Updated Tenders And Health
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add public/tenders.json public/tenders-lite.json public/health.json
+          if [ -f data/kppp-fees.json ]; then git add data/kppp-fees.json; fi
+
+          if git diff --cached --quiet; then
+            echo "No tender or health changes."
+          else
+            # [skip ci]: the website reads this data straight from GitHub, so no redeploy is needed.
+            git commit -m "Update KPPP tenders [skip ci]"
+            git pull --rebase origin main
+            git push origin main
+          fi

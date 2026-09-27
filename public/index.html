@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TenderOne · Karnataka Tenders</title>
+<meta name="description" content="Search every live Karnataka government tender from KPPP — works, goods and services — with EMD, fee, closing dates and a bid calculator.">
+<meta name="theme-color" content="#3730a3">
+<link rel="manifest" href="/manifest.json" crossorigin="use-credentials">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="TenderOne">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%234f46e5'/%3E%3Cpath d='M10 9h12v3h-4.5v11h-3V12H10z' fill='white'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/app.css?v=20260927e">
+<script src="/app.js?v=20260927c" defer></script>
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <div class="topbar">
+      <a class="brand" href="/">
+        <span class="brand-mark"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 6h14M12 6v13"/></svg></span>
+        <span>TenderOne<small>Karnataka tender desk</small></span>
+      </a>
+      <div class="topbar-inner">
+        <button class="icon-btn status-btn install-btn" id="installBtn" type="button" title="Install TenderOne as an app" hidden>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M12 7v7m0 0-3-3m3 3 3-3M10 18h4"/></svg><span>Install app</span>
+        </button>
+        <button class="icon-btn status-btn" id="statusTopBtn" type="button" title="System status" aria-label="System status">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span>Status</span>
+        </button>
+        <button class="icon-btn text-btn" id="textBtn" type="button" title="Bigger text" aria-label="Bigger text" aria-pressed="false">A<span>A</span></button>
+        <button class="icon-btn" id="themeBtn" type="button" title="Switch light / dark" aria-label="Switch light or dark theme">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="hero-copy">
+      <div class="live-pill" id="livePill"><span class="live-dot"></span><span id="liveText">Loading latest tenders…</span></div>
+      <h1>Every Karnataka government tender, in one place.</h1>
+      <p>Live KPPP works, goods and services tenders with EMD, fee and closing dates — refreshed every hour.</p>
+    </div>
+    <div class="modes" role="tablist" aria-label="Section">
+      <button type="button" role="tab" data-mode="live" aria-selected="true">Live tenders</button>
+      <button type="button" role="tab" data-mode="results" aria-selected="false">Past results</button>
+      <button type="button" role="tab" data-mode="bidders" aria-selected="false">Bidders</button>
+    </div>
+    <label class="search">
+      <span class="sr-only">Search tenders</span>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" autocomplete="off" placeholder="Search by work, tender number, department or town…">
+      <kbd>/</kbd>
+    </label>
+  </div>
+</header>
+
+<main class="wrap" id="liveView">
+  <section class="stats" aria-label="Tender counts">
+    <button class="stat all" data-cat="ALL" type="button"><span><i></i>All tenders</span><strong id="cAll">–</strong></button>
+    <button class="stat works" data-cat="WORKS" type="button"><span><i></i>Works</span><strong id="cWorks">–</strong></button>
+    <button class="stat goods" data-cat="GOODS" type="button"><span><i></i>Goods</span><strong id="cGoods">–</strong></button>
+    <button class="stat services" data-cat="SERVICES" type="button"><span><i></i>Services</span><strong id="cServices">–</strong></button>
+    <button class="stat soon" data-soon="7" type="button"><span><i></i>Closing in 7 days</span><strong id="cSoon">–</strong></button>
+  </section>
+
+  <section class="filters" id="filters" aria-label="Filters">
+    <div class="filter-row">
+      <div class="select"><select id="fDistrict" aria-label="District"><option value="">All districts</option></select></div>
+      <div class="select"><select id="fDept" aria-label="Department"><option value="">All departments</option></select></div>
+      <div class="select"><select id="fValue" aria-label="Tender value">
+        <option value="">Any value</option>
+        <option value="0-1000000">Up to ₹10 lakh</option>
+        <option value="1000000-10000000">₹10 lakh – ₹1 crore</option>
+        <option value="10000000-50000000">₹1 – 5 crore</option>
+        <option value="50000000-">Above ₹5 crore</option>
+      </select></div>
+      <div class="select"><select id="fClosing" aria-label="Closing">
+        <option value="">Any closing date</option>
+        <option value="3">Closing in 3 days</option>
+        <option value="7">Closing in 7 days</option>
+        <option value="30">Closing in 30 days</option>
+      </select></div>
+      <div class="select"><select id="fAccess" aria-label="Who can bid">
+        <option value="">Open &amp; reserved</option>
+        <option value="mine">I can bid (SC): open + SC reserved</option>
+        <option value="SC">SC reserved only</option>
+        <option value="Open">Open only</option>
+        <option value="Reserved">All reserved</option>
+        <option value="ST">ST reserved</option>
+        <option value="Cat-1">Category I reserved</option>
+        <option value="Cat-2A">Category II-A reserved</option>
+      </select></div>
+      <div class="select"><select id="fBidTime" aria-label="Time to bid">
+        <option value="">Any time to bid</option>
+        <option value="7">⚡ Under 7 days to bid</option>
+        <option value="8">⚡ 7 days or less to bid</option>
+        <option value="11">10 days or less to bid</option>
+      </select></div>
+      <div class="select"><select id="fSort" aria-label="Sort">
+        <option value="new">Newest first</option>
+        <option value="closing">Closing soonest</option>
+        <option value="value">Highest value</option>
+        <option value="emd">Lowest EMD</option>
+      </select></div>
+      <button class="btn" id="forMeBtn" type="button" aria-pressed="false" title="Show only tenders that match your profile">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+        For me
+      </button>
+      <button class="btn" id="savedBtn" type="button" aria-pressed="false">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg>
+        Saved <span id="savedCount">0</span>
+      </button>
+      <span class="spacer"></span>
+      <button class="btn ghost" id="resetBtn" type="button">Reset</button>
+      <button class="btn" id="exportBtn" type="button" title="Download the filtered tenders as a spreadsheet (CSV)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>
+        Export
+      </button>
+    </div>
+  </section>
+
+  <button class="sc-banner" id="scBanner" type="button" hidden>
+    <b><span id="scCount">0</span> tenders reserved for SC contractors</b><span id="scSoon"></span>
+    <span class="spacer"></span><span class="sc-go">Show them →</span>
+  </button>
+  <div class="results-head">
+    <h2 id="resultTitle">Loading tenders…</h2>
+    <div class="chips" id="chips"></div>
+    <span class="spacer"></span>
+    <div class="seg" role="group" aria-label="View">
+      <button type="button" data-view="cards" aria-pressed="true" title="Card view"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg> Cards</button>
+      <button type="button" data-view="list" aria-pressed="false" title="List view"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg> List</button>
+    </div>
+  </div>
+  <section class="grid" id="grid" aria-live="polite">
+    <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+  </section>
+  <div class="more"><button class="btn" id="moreBtn" type="button" hidden>Show more tenders</button></div>
+</main>
+
+<main class="wrap" id="resultsView" hidden>
+  <section class="insights" id="insights" aria-live="polite">
+    <div class="stat"><span>Awarded tenders</span><strong id="rCount">–</strong></div>
+    <div class="stat"><span>Typical winning bid</span><strong id="rMedian">–</strong><small>vs estimate (median L1)</small></div>
+    <div class="stat"><span>Average bidders</span><strong id="rBidders">–</strong></div>
+    <div class="stat"><span>Top winners</span><ol class="winners" id="rWinners"></ol></div>
+  </section>
+  <section class="filters">
+    <div class="filter-row">
+      <div class="select" hidden><select id="rCat" aria-label="Category"><option value="">All categories</option><option value="WORKS">Works</option></select></div>
+      <div class="select"><select id="rDistrict" aria-label="District"><option value="">All districts</option></select></div>
+      <div class="select"><select id="rDept" aria-label="Department"><option value="">All departments</option></select></div>
+      <div class="select"><select id="rWork" aria-label="Type of work"><option value="">All types of work</option></select></div>
+      <div class="select"><select id="rPeriod" aria-label="Awarded when"><option value="">Awarded any time</option><option value="3">Last 3 months</option><option value="6">Last 6 months</option><option value="12">Last 12 months</option></select></div>
+      <div class="select"><select id="rValue" aria-label="Estimate">
+        <option value="">Any value</option>
+        <option value="0-1000000">Up to ₹10 lakh</option>
+        <option value="1000000-10000000">₹10 lakh – ₹1 crore</option>
+        <option value="10000000-50000000">₹1 – 5 crore</option>
+        <option value="50000000-">Above ₹5 crore</option>
+      </select></div>
+      <div class="select"><select id="rBidderCount" aria-label="Number of bidders"><option value="">Any number of bidders</option><option value="1">Only 1 bidder</option><option value="2">2 or more bidders</option><option value="3">3 or more bidders</option><option value="5">5 or more bidders</option></select></div>
+      <div class="select"><select id="rSort" aria-label="Sort"><option value="new">Recently awarded</option><option value="discount">Biggest discount</option><option value="value">Highest value</option><option value="bidders">Most bidders</option></select></div>
+      <button class="btn" id="rSavedBtn" type="button" aria-pressed="false">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg>
+        Saved <span id="rSavedCount">0</span>
+      </button>
+      <span class="spacer"></span>
+      <button class="btn ghost" id="rReset" type="button">Reset</button>
+      <button class="btn" id="rExport" type="button" title="Download the filtered results as an Excel file">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>
+        Export
+      </button>
+    </div>
+  </section>
+  <section class="panel watch" id="rWatch" hidden></section>
+  <details class="panel charts" id="rCharts">
+    <summary><h3>Charts &amp; trends for these results</h3><span class="note">Discount by month, districts, departments, busiest winners</span></summary>
+    <div id="rChartsBody"></div>
+  </details>
+  <details class="panel charts" id="rQuick">
+    <summary><h3>⚡ Quick tenders</h3><span class="note">Published and closed fast: which offices, which months, who wins</span></summary>
+    <div id="rQuickBody"><p class="muted-p">Loading…</p></div>
+  </details>
+  <section class="panel downloads" id="rDownloads" hidden></section>
+  <div class="results-head"><h2 id="rTitle">Loading results…</h2><p class="note" style="margin:0">Recent works winners and bid amounts published by KPPP. Search a contractor's name to see their bids.</p></div>
+  <div class="people" id="rPeople" hidden></div>
+  <section class="rlist" id="rList"></section>
+  <div class="more"><button class="btn" id="rMore" type="button" hidden>Show more results</button></div>
+</main>
+
+<main class="wrap" id="biddersView" hidden>
+  <section class="filters">
+    <div class="filter-row">
+      <div class="select"><select id="bDistrict" aria-label="District"><option value="">All districts</option></select></div>
+      <div class="select"><select id="bYear" aria-label="Year"><option value="">All years</option></select></div>
+      <div class="select"><select id="bSort" aria-label="Sort">
+        <option value="wins">Most wins</option>
+        <option value="bids">Most bids</option>
+        <option value="rate">Best win rate</option>
+        <option value="value">Highest value won</option>
+        <option value="latest">Recently active</option>
+        <option value="name">Name A–Z</option>
+      </select></div>
+      <div class="select"><select id="bMin" aria-label="Minimum bids">
+        <option value="">Any number of bids</option>
+        <option value="5">5 or more bids</option>
+        <option value="10">10 or more bids</option>
+        <option value="50">50 or more bids</option>
+      </select></div>
+      <span class="spacer"></span>
+      <span id="bDownload"></span>
+    </div>
+  </section>
+  <div class="results-head"><h2 id="bTitle">Loading bidders…</h2><p class="note" style="margin:0">Every works bidder since 2023. Pick a district and year to rank bidders there, or type a name in the search box. Tap a bidder to see every tender they bid, and tap a tender to see all competitors and their item-wise rates.</p></div>
+  <section class="rlist" id="bList"></section>
+  <div class="more"><button class="btn" id="bMore" type="button" hidden>Show more bidders</button></div>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <span id="footData">Source: Karnataka Public Procurement Portal (KPPP)</span>
+    <span>Always confirm details on <a href="https://kppp.karnataka.gov.in/" target="_blank" rel="noopener">kppp.karnataka.gov.in</a> before bidding.</span>
+    <span>Personal tool — not affiliated with the Government of Karnataka or KPPP.</span>
+    <span class="spacer"></span>
+    <button type="button" id="statusBtn">System status</button>
+    <a href="/logout" class="logout">Sign out</a>
+  </div>
+</footer>
+
+<div class="tender-page" id="drawer" role="dialog" aria-modal="true" aria-labelledby="dTitle" aria-hidden="true"></div>
+
+<dialog id="profileDialog" class="wide">
+  <div class="dialog-head"><h3>Tenders for me</h3><button class="close" type="button" data-close aria-label="Close">✕</button></div>
+  <form class="profile" id="profileForm" method="dialog">
+    <p class="note" style="margin:0 0 12px">Choose what you bid on. "For me" then shows only matching tenders. Leave a section empty to allow everything.</p>
+    <fieldset><legend>Category</legend><div class="opts" id="pCats"></div></fieldset>
+    <fieldset><legend>Districts</legend><div class="opts" id="pDistricts"></div></fieldset>
+    <fieldset><legend>Type of work</legend><div class="opts" id="pWork"></div></fieldset>
+    <fieldset><legend>Tender value</legend>
+      <div class="range-row">
+        <label>From ₹<input type="number" id="pMin" min="0" step="100000" inputmode="numeric" placeholder="0"></label>
+        <label>To ₹<input type="number" id="pMax" min="0" step="100000" inputmode="numeric" placeholder="No limit"></label>
+      </div>
+      <label class="check"><input type="checkbox" id="pNoValue" checked> Include tenders where value is not published</label>
+    </fieldset>
+    <fieldset><legend>Who can bid</legend><div class="opts">
+      <label class="check"><input type="checkbox" id="pReserved"> I can bid on reserved (SC/ST etc.) tenders</label>
+    </div></fieldset>
+    <div class="profile-actions"><button class="btn ghost" type="button" id="pClear">Clear profile</button><span class="spacer"></span><button class="btn primary" type="submit" id="pSave">Save &amp; show my tenders</button></div>
+  </form>
+</dialog>
+<dialog id="statusDialog">
+  <div class="dialog-head"><h3>System status</h3><button class="close" type="button" data-close aria-label="Close">✕</button></div>
+  <ul class="status-list" id="statusList"><li>Checking…</li></ul>
+</dialog>
+<dialog id="installDialog">
+  <div class="dialog-head"><h3>Install TenderOne</h3><button class="close" type="button" data-close aria-label="Close">✕</button></div>
+  <div class="install-steps" id="installSteps"></div>
+</dialog>
+<div class="cmp-tray" id="cmpTray" hidden></div>
+<div class="toast" id="toast" role="status"></div>
+</body>
+</html>
