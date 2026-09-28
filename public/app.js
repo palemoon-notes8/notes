@@ -177,7 +177,8 @@
   let reserved = new Map();
   const resvHas = (t, cat) => Boolean(t.resv && t.resv.split('/').includes(cat));
   const resvLabel = (v) => (v === 'Reserved' ? 'Reserved' : `${v.replace('Cat-1', 'Category I').replace('Cat-2A', 'Category II-A').replace('Cat-2B', 'Category II-B')} reserved`);
-  function markReserved() { for (const t of S.all) t.resv = t.access === 'Reserved' ? (reserved.get(String(t.nit)) || 'Reserved') : null; }
+  // The full conditions (reserved.json) win; until they are read, the title/description guess (t.resvGuess) is used.
+  function markReserved() { for (const t of S.all) t.resv = t.access === 'Reserved' ? (reserved.get(String(t.nit)) || t.resvGuess || 'Reserved') : null; }
   function loadReserved() {
     fetch('/reserved.json').then((r) => (r.ok ? r.json() : null)).then((d) => {
       if (!d?.tenders) return;

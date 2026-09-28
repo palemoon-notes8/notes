@@ -6,6 +6,7 @@ duplicated raw payload and normalises dates and districts once, here, instead
 of in every visitor's browser.
 """
 
+import collections
 import json
 import re
 from datetime import datetime
@@ -84,6 +85,36 @@ def positive(value):
         return None
 
 
+# ---------- Who a reserved tender is for (SC / ST / Category-I / II-A / II-B) ----------
+# KPPP only says "Reserved"; the category is written in the title, conditions or document names.
+# collect_details.py reads the conditions later; the title and description give most of them at once.
+GEN = re.compile(r'Scheduled\s+Caste\s*/\s*Scheduled\s+Tribe\s*/\s*other\s+reserved\s+category', re.I)
+CATS = [
+    ("SC", re.compile(r'\bS\.?\s?C\.?(?=[\s)\-,/]|$)|Scheduled\s+Castes?', re.I)),
+    ("ST", re.compile(r'\bS\.?\s?T\.?(?=[\s)\-,/]|$)|Scheduled\s+Tribes?', re.I)),
+    ("Cat-1", re.compile(r'\bCAT(?:EGORY|AGORY)?[\s\-:.(]*(?:I|1)\b(?![\s\-(]*[AB]\b)', re.I)),
+    ("Cat-2A", re.compile(r'\b(?:CAT(?:EGORY|AGORY)?[\s\-:.(]*)?(?:II|2)[\s\-(]*A\b', re.I)),
+    ("Cat-2B", re.compile(r'\b(?:CAT(?:EGORY|AGORY)?[\s\-:.(]*)?(?:II|2)[\s\-(]*B\b', re.I)),
+]
+HINT = re.compile(r'reserv|categor|catagor|caste|tribe|belong|only|certificate', re.I)
+
+
+def list_reservation(title, description):
+    """SC / ST / Cat-1 / Cat-2A / Cat-2B from a reserved tender's title and description, when they say so."""
+    votes = collections.Counter()
+    for text in (title, description):
+        text = GEN.sub(" ", text or "")
+        if not HINT.search(text):
+            continue
+        found = {name for name, rx in CATS if rx.search(text)}
+        if len(found) == 1:
+            votes[found.pop()] += 1
+    if not votes:
+        return None
+    top = max(votes.values())
+    return "/".join(n for n, _ in CATS if votes[n] == top)
+
+
 def slim(tender):
     raw = tender.get("raw") if isinstance(tender.get("raw"), dict) else {}
     title = str(tender.get("title") or raw.get("title") or "").strip()
@@ -110,6 +141,8 @@ def slim(tender):
     }
     if description and description != title:
         record["desc"] = description
+    if record["access"] == "Reserved":
+        record["resvGuess"] = list_reservation(title, description)
     return {k: v for k, v in record.items() if v not in (None, "")}
 
 

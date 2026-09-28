@@ -26,6 +26,7 @@ import requests
 
 from kppp_polite import make_session as polite_session
 
+from build_lite import CATS, GEN, HINT
 from collect_results import item_key
 
 STORE = Path(sys.argv[1] if len(sys.argv) > 1 else "store") / "details"
@@ -117,15 +118,7 @@ def fetch(session, cat, nit, old):
 
 # ---------- Who a reserved tender is for (SC / ST / Category-I / II-A / II-B) ----------
 # KPPP only says "Reserved"; the category is written in the title, conditions or document names.
-GEN = re.compile(r'Scheduled\s+Caste\s*/\s*Scheduled\s+Tribe\s*/\s*other\s+reserved\s+category', re.I)
-CATS = [
-    ("SC", re.compile(r'\bS\.?\s?C\.?(?=[\s)\-,/]|$)|Scheduled\s+Castes?', re.I)),
-    ("ST", re.compile(r'\bS\.?\s?T\.?(?=[\s)\-,/]|$)|Scheduled\s+Tribes?', re.I)),
-    ("Cat-1", re.compile(r'\bCAT(?:EGORY|AGORY)?[\s\-:.(]*(?:I|1)\b(?![\s\-(]*[AB]\b)', re.I)),
-    ("Cat-2A", re.compile(r'\b(?:CAT(?:EGORY|AGORY)?[\s\-:.(]*)?(?:II|2)[\s\-(]*A\b', re.I)),
-    ("Cat-2B", re.compile(r'\b(?:CAT(?:EGORY|AGORY)?[\s\-:.(]*)?(?:II|2)[\s\-(]*B\b', re.I)),
-]
-HINT = re.compile(r'reserv|categor|catagor|caste|tribe|belong|only|certificate', re.I)
+# GEN, CATS and HINT (the category patterns) live in build_lite.py, which also uses them on the tender list.
 
 def reservation(full):
     """SC / ST / Cat-1 / Cat-2A / Cat-2B for a reserved tender, from its title, conditions and document names."""
