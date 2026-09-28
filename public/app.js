@@ -546,6 +546,7 @@
           </dl></section>
           <section class="panel quick-note" id="tpQuick" hidden></section>
           <section class="panel rivals" id="tpRivals" hidden></section>
+          <section class="panel office-past" id="tpOffice" hidden></section>
           <section class="panel" id="tpContact" hidden></section>
           ${notePanel('t:' + t.id)}
           <div class="actions col">
@@ -576,6 +577,7 @@
     renderSimilar(t);
     renderQuickNote(t);
     renderRivals(t);
+    renderOfficePast(t);
     if (location.hash !== '#t=' + t.id) history.pushState({ tender: t.id }, '', '#t=' + encodeURIComponent(t.id));
   }
 
@@ -1300,6 +1302,58 @@
       <tbody>${people.map(([name, bids, wins, pct, last]) => `<tr>
         <td><button type="button" class="linkish" data-contractor="${esc(name)}">${isWatched(name) ? '👁 ' : ''}${esc(splitName(name).firm)}</button><small class="who">Last bid ${esc(monthYear(last))}</small><small class="rv-sum">${fmtInt(bids)} bids · <b>${fmtInt(wins)} won</b>${pct === null ? '' : ` · ${esc(pctText(pct).replace(' estimate', ''))}`}</small></td></tr>`).join('')}</tbody></table></div>
       <p class="note">From past results only. Tap a name for every tender they bid and their item-wise rates.</p>`;
+    box.hidden = false;
+  }
+
+  // ---------- How this office's similar past works went (offices/{xx}.json via /api/office) ----------
+  const officeCache = new Map();
+  async function renderOfficePast(t) {
+    if (t.cat !== 'WORKS' || !t.office) return;
+    if (!officeCache.has(t.office)) {
+      officeCache.set(t.office, fetch(`/api/office?name=${encodeURIComponent(t.office)}`).then((r) => (r.ok ? r.json() : null)).catch(() => null));
+    }
+    const d = await officeCache.get(t.office);
+    const box = $('tpOffice');
+    if (!box || G.t !== t || !d?.works?.length) return;
+    // Same type of work and a similar amount; widen step by step until there are enough to go on.
+    const v = num(t.value);
+    const near = (w, lo, hi) => !v || (num(w[1]) && w[1] >= v * lo && w[1] <= v * hi);
+    const tries = [
+      [(w) => w[2] === t.work && near(w, 0.5, 2), 'same type of work, similar amount'],
+      [(w) => w[2] === t.work && near(w, 0.25, 4), 'same type of work'],
+      [(w) => near(w, 0.5, 2), 'similar amount'],
+      [() => true, 'all works'],
+    ];
+    let list = [], scope = '';
+    for (const [test, label] of tries) {
+      list = d.works.filter(test);
+      scope = label;
+      if (list.length >= 5) break;
+    }
+    if (list.length < 3) return;
+    const pcts = list.map((w) => w[6]?.[0]?.[1]).filter((p) => p !== null && p !== undefined && p > -80 && p < 80);
+    const med = median(pcts);
+    const bidders = list.reduce((n, w) => n + (w[5] || 0), 0) / list.length;
+    const close = med === null ? 0 : pcts.filter((p) => Math.abs(p - med) <= 0.5).length;
+    const lo = pcts.length ? Math.min(...pcts) : null;
+    const wins = new Map();
+    for (const w of list) { const n = w[6]?.[0]?.[0]; if (n) wins.set(n, (wins.get(n) || 0) + 1); }
+    const top = [...wins.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const monthYear = (iso) => new Date(iso + 'T00:00:00').toLocaleString('en-IN', { month: 'short', year: 'numeric' });
+    const pctCell = (p) => (p === null || p === undefined ? '—' : `${p > 0 ? '+' : ''}${p.toFixed(2)}%`);
+    box.innerHTML = `<h3>How this office's similar works went <span class="count">${fmtInt(list.length)}</span></h3>
+      <p class="note" style="margin-top:0">${esc(t.office)} · ${esc(scope)} · last 3 years</p>
+      <div class="op-kpis">
+        <div><span>Typical winning bid</span><strong>${med === null ? '—' : esc(pctText(med))}</strong></div>
+        <div><span>Usual bidders</span><strong>about ${bidders.toFixed(1)}</strong></div>
+        <div><span>Pattern</span><strong>${med === null ? '—' : `${fmtInt(close)} of ${fmtInt(pcts.length)} within ±0.5% of that`}</strong><small>${lo !== null && lo < med - 1 ? `lowest ever ${esc(pctCell(lo))}` : ''}</small></div>
+      </div>
+      <div class="op-list">${list.slice(0, 8).map((w) => `<div class="op-row">
+        <div class="op-when">${esc(monthYear(w[0]))}<b>${num(w[1]) ? money(w[1]) : '—'}</b><small>${w[5]} bidder${w[5] === 1 ? '' : 's'}</small></div>
+        <div class="op-who">${w[6]?.[0] ? `<span><em>L1</em><button type="button" class="linkish" data-contractor="${esc(w[6][0][0])}">${esc(splitName(w[6][0][0]).firm)}</button> <b>${esc(pctCell(w[6][0][1]))}</b></span>` : ''}
+          ${w[6]?.[1] ? `<span><em>L2</em>${esc(splitName(w[6][1][0]).firm)} ${esc(pctCell(w[6][1][1]))}</span>` : '<span class="muted-p"><em>L2</em>only bidder</span>'}</div>
+      </div>`).join('')}</div>
+      ${top.length ? `<p class="note">Most frequent winners here: ${top.map(([n, c]) => `<button type="button" class="linkish" data-contractor="${esc(n)}">${esc(splitName(n).firm)}</button> (${c})`).join(', ')}</p>` : ''}`;
     box.hidden = false;
   }
 

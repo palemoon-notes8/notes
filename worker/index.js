@@ -360,6 +360,26 @@ function crc32(text) {
   for (const byte of new TextEncoder().encode(text)) c = CRC_TABLE[(c ^ byte) & 0xff] ^ (c >>> 8);
   return (c ^ 0xffffffff) >>> 0;
 }
+// One office's awarded works of the last 3 years (collect_history.py write_offices).
+async function officeWorks(name, ctx) {
+  const office = String(name || '').trim();
+  if (!office || office.length > 300) return json({ success: false, message: 'Unknown office.' }, 400);
+  const cache = caches.default;
+  const cacheKey = new Request(`https://kppp-office.local/v1/${encodeURIComponent(office)}`);
+  const hit = await cache.match(cacheKey);
+  if (hit) return hit;
+  const shard = (crc32(office) & 0xff).toString(16).padStart(2, '0');
+  let entries = null;
+  try {
+    const upstream = await fetch(`${REPO_RAW}/history/offices/${shard}.json`, { cf: { cacheTtl: 1800, cacheEverything: true } });
+    if (upstream.ok) entries = await upstream.json();
+  } catch {}
+  if (!entries) return json({ success: false, message: 'Office history is not ready yet.' }, 404, 'public, max-age=300');
+  const response = json({ success: true, office, works: entries[office] || [] }, 200, 'public, max-age=3600, s-maxage=3600');
+  ctx.waitUntil(cache.put(cacheKey, response.clone()));
+  return response;
+}
+
 async function contractorRecord(name, ctx) {
   const key = nameKey(name);
   if (!key || key.length > 200) return json({ success: false, message: 'Unknown contractor.' }, 400);
@@ -605,6 +625,7 @@ export default {
     if (url.pathname === '/bidders.json') return historyFile('bidders.json', ctx, 1800);
     if (url.pathname === '/quick.json') return historyFile('quick.json', ctx, 1800);
     if (url.pathname === '/competitors.json') return historyFile('competitors.json', ctx, 1800);
+    if (url.pathname === '/api/office') return officeWorks(url.searchParams.get('name'), ctx);
     if (url.pathname === '/reserved.json') return historyFile('details/reserved.json', ctx, 600, false, 'data');
     const bids = url.pathname.match(/^\/api\/tender-bids\/(\d+)$/);
     if (bids) return tenderBids(bids[1], url.searchParams.get('m'), ctx);

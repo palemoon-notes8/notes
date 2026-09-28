@@ -625,3 +625,19 @@ dialog.wide{width:min(720px,calc(100% - 24px));max-height:calc(100vh - 40px)}
 /* Tender page top buttons: scroll sideways on phones instead of widening the page */
 @media (max-width:760px){.tp-bar-in{overflow-x:auto;scrollbar-width:none;flex-wrap:nowrap}.tp-bar-in::-webkit-scrollbar{display:none}.tp-bar-in>*{flex:0 0 auto}}
 .rivals-table .rv-sum{display:block;margin-top:2px;color:var(--text)}
+
+.op-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:10px 0 12px}
+.op-kpis>div{padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}
+.op-kpis span{display:block;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.op-kpis strong{display:block;font-size:17px;margin-top:2px}
+.op-kpis small{display:block;font-size:12px;color:var(--muted)}
+@media (max-width:760px){.op-kpis{grid-template-columns:1fr}}
+.op-list{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.op-row{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;padding:10px 12px;border-top:1px solid var(--line)}
+.op-row:first-child{border-top:0}
+.op-when{font-size:12.5px;color:var(--muted);font-weight:700}
+.op-when b{display:block;color:var(--ink);font-size:14px}
+.op-when small{display:block;font-weight:600}
+.op-who{display:flex;flex-direction:column;gap:3px;min-width:0;font-size:13.5px}
+.op-who span{overflow-wrap:anywhere}
+.op-who em{font-style:normal;font-size:11px;font-weight:800;color:var(--muted);margin-right:6px}

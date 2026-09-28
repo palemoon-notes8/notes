@@ -11,6 +11,7 @@ of KPPP's awarded works tenders (about 1 lakh) and keeps, in the "history" branc
   similar.json                how similar tenders were won, per department / district and type of work
   itemwise.json               the item-wise Excel files (one per month: every bidder's rate for every
                               item), which are kept as downloads in the "itemwise" GitHub release
+  offices/{xx}.json           each office's awarded works of the last 3 years (similar works box),
   contractors/{xx}.json       every bidder's record since 2023 (bids, wins, where, rivals, latest tenders),
                               split into 256 files by a hash of the name (worker/index.js looks them up)
   index.json                  what is there, for the website's download list
@@ -718,6 +719,37 @@ def collect(history, out, shard, shards):
     print(f"Part {shard + 1} done: {ok} new, {failed} failed, {stats['pages_done']}/{len(mine)} pages ({int(time.monotonic() - started)}s)")
 
 
+def office_shard(office):
+    return f"{zlib.crc32(office.encode('utf-8')) & 0xff:02x}"
+
+
+def write_offices(results, root, since_months=36):
+    """offices/{xx}.json: each office's awarded works of the last `since_months` months, for the
+    "similar works from this office" box on a live tender. Row: [closed, estimate, type of work,
+    title, nit, bidders, [[L1 name, %], [L2 name, %]]]."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=since_months * 30)).strftime("%Y-%m-%d")
+    shards = defaultdict(lambda: defaultdict(list))
+    for r in results:
+        closed = (r.get("closed") or "")[:10]
+        office = (r.get("office") or "").strip()
+        bidders = r.get("bidders") or []
+        if not office or not closed or closed < cutoff or not bidders:
+            continue
+        top = [[b.get("name"), b.get("pct")] for b in sorted(bidders, key=lambda b: b.get("rank") or 99)[:2]]
+        shards[office_shard(office)][office].append(
+            [closed, r.get("value"), r.get("work") or "", (r.get("title") or "")[:110], r.get("nit"), len(bidders), top])
+    folder = root / "offices"
+    folder.mkdir(exist_ok=True)
+    for old in folder.glob("*.json"):
+        if old.stem not in shards:
+            old.unlink()
+    for shard, offices in shards.items():
+        for rows in offices.values():
+            rows.sort(key=lambda row: row[0], reverse=True)
+        (folder / f"{shard}.json").write_text(json.dumps(offices, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    return sum(len(o) for o in shards.values())
+
+
 def build(history, parts, itemwise_out=None):
     """Merge the parts into the history, then write the Excel files and comparison figures."""
     started = time.monotonic()
@@ -755,6 +787,7 @@ def build(history, parts, itemwise_out=None):
     write_tender_bids(store, history)
     write_quick(results, history)
     write_competitors(results, history)
+    write_offices(results, history)
     itemwise = write_itemwise(store, history, itemwise_out) if itemwise_out else []
     closed = sorted(r["closed"] for r in results if r.get("closed"))
     (history / "index.json").write_text(json.dumps({
