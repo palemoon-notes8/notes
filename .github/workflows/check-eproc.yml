@@ -1,0 +1,58 @@
+name: Check eproc portal (one-time)
+
+# Opens a few public pages of the old Karnataka e-Procurement portal, slowly and without logging
+# in, to see whether it still shows tenders or results. Run by hand only.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Look at public pages
+        run: |
+          python3 - <<'PY'
+          import re, time, urllib.request, urllib.parse, ssl
+          ctx = ssl.create_default_context()
+          ctx.check_hostname = False
+          ctx.verify_mode = ssl.CERT_NONE
+          START = "https://eproc.karnataka.gov.in/eprocportal/pages/index.jsp"
+          UA = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36"}
+          def get(url):
+              req = urllib.request.Request(url, headers=UA)
+              try:
+                  with urllib.request.urlopen(req, timeout=40, context=ctx) as r:
+                      return r.status, r.geturl(), r.read().decode("utf-8", "replace")
+              except Exception as e:
+                  return getattr(e, "code", None) or str(e)[:120], url, ""
+          def show(url, body, status, final):
+              title = re.search(r"<title[^>]*>(.*?)</title>", body, re.S | re.I)
+              text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", re.sub(r"(?is)<(script|style).*?</\1>", "", body)))
+              print(f"\n=== {url}\n    status {status}, final {final}, {len(body)} bytes, title: {title.group(1).strip() if title else '-'}")
+              print("    text:", text[:1500])
+          status, final, body = get(START)
+          show(START, body, status, final)
+          links = []
+          for href, label in re.findall(r'<a[^>]+href="([^"#]+)"[^>]*>(.*?)</a>', body, re.S | re.I):
+              label = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", label)).strip()
+              url = urllib.parse.urljoin(final, href)
+              links.append((label, url))
+          print("\n--- links on the homepage ---")
+          for label, url in links:
+              print(f"  {label[:60]!r:64} {url}")
+          keys = re.compile(r"tender|award|result|archive|contract|bid|corrigend", re.I)
+          picked, seen = [], set()
+          for label, url in links:
+              if keys.search(label + " " + url) and url not in seen and "eproc.karnataka.gov.in" in url and not url.lower().endswith((".pdf", ".doc", ".docx", ".zip")):
+                  seen.add(url); picked.append(url)
+          for url in picked[:6]:
+              time.sleep(6)
+              status, final, body = get(url)
+              show(url, body, status, final)
+              rows = len(re.findall(r"<tr", body, re.I))
+              print(f"    table rows on page: {rows}")
+          PY
