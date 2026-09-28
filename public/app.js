@@ -176,7 +176,7 @@
   const MY_CAT = 'SC';
   let reserved = new Map();
   const resvHas = (t, cat) => Boolean(t.resv && t.resv.split('/').includes(cat));
-  const resvLabel = (v) => (v === 'Reserved' ? 'Reserved' : `${v.replace('Cat-1', 'Category I').replace('Cat-2A', 'Category II-A').replace('Cat-2B', 'Category II-B')} reserved`);
+  const resvLabel = (v) => (v === 'Reserved' ? 'Reserved – category not stated' : `${v.replace('Cat-1', 'Category I').replace('Cat-2A', 'Category II-A').replace('Cat-2B', 'Category II-B')} reserved`);
   // The full conditions (reserved.json) win; until they are read, the title/description guess (t.resvGuess) is used.
   function markReserved() { for (const t of S.all) t.resv = t.access === 'Reserved' ? (reserved.get(String(t.nit)) || t.resvGuess || 'Reserved') : null; }
   function loadReserved() {
@@ -311,6 +311,7 @@
       if (f.access) {
         if (f.access === 'mine') { if (!(t.access === 'Open' || resvHas(t, MY_CAT))) continue; }
         else if (f.access === 'Open' || f.access === 'Reserved' || f.access === 'Restricted') { if (t.access !== f.access) continue; }
+        else if (f.access === 'unstated') { if (t.resv !== 'Reserved') continue; }
         else if (!resvHas(t, f.access)) continue;
       }
       if (f.vmin !== null || f.vmax !== null) {
