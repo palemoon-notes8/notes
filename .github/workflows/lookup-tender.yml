@@ -7,6 +7,9 @@ on:
       ref:
         description: Tender number
         required: true
+      words:
+        description: A few words from the title (KPPP searches titles, not numbers)
+        required: false
 
 permissions:
   contents: read
@@ -24,6 +27,7 @@ jobs:
       - name: Look up
         env:
           REF: ${{ inputs.ref }}
+          WORDS: ${{ inputs.words }}
           KPPP_MIN_INTERVAL: "5"
         run: |
           python3 - <<'PY'
@@ -31,10 +35,10 @@ jobs:
           from kppp_polite import make_session
           from collect_results import API, HEADERS
           ref = os.environ["REF"].strip()
-          key = ref.split("/")[-2] if "/CALL" in ref.upper() else ref.split("/")[-1]
+          key = os.environ.get("WORDS", "").strip() or ref
           s = make_session(1)
           hit = None
-          for status in ["PUBLISHED", "AWARDED", "CLOSED", "OPENED", "EVALUATION", "CANCELLED"]:
+          for status in ["CLOSED", "PUBLISHED", "AWARDED"]:
               r = s.post(f"{API}/works/search-eproc-tenders?page=0&size=50&order-by-tender-publish=true",
                          json={"category": "WORKS", "status": status, "title": key}, headers=HEADERS, timeout=90)
               try:
