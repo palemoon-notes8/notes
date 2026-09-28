@@ -561,27 +561,6 @@ export class Prefs extends DurableObject {
   }
 }
 
-// One-time test: can this Worker (run near you, in India) reach the old eProcurement portal?
-async function eprocCheck(request) {
-  const start = 'https://eproc.karnataka.gov.in/eprocportal/pages/index.jsp';
-  const out = { colo: request.cf?.colo || null, country: request.cf?.country || null };
-  const t0 = Date.now();
-  try {
-    const res = await fetch(start, { headers: { 'User-Agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Mobile Safari/537.36' }, signal: AbortSignal.timeout(25000) });
-    const body = await res.text();
-    out.status = res.status;
-    out.ms = Date.now() - t0;
-    out.title = (body.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1]?.trim() || null;
-    out.links = [...body.matchAll(/<a[^>]+href="([^"#]+)"[^>]*>([\s\S]*?)<\/a>/gi)]
-      .map((m) => [m[2].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(), new URL(m[1], start).toString()])
-      .filter(([label]) => label).slice(0, 80);
-  } catch (error) {
-    out.error = String(error.message || error).slice(0, 200);
-    out.ms = Date.now() - t0;
-  }
-  return json(out);
-}
-
 async function prefs(request, env) {
   if (!env.PREFS) return json({ success: false, message: 'Sync is not set up.' }, 503);
   const stub = env.PREFS.get(env.PREFS.idFromName('me'));
@@ -615,7 +594,6 @@ export default {
     const allowed = OPEN_PATHS.has(url.pathname) || (await signedIn(request));
     if (!allowed) return notFound();
     if (url.pathname === '/api/prefs') return prefs(request, env);
-    if (url.pathname === '/api/eproc-check') return eprocCheck(request);
     if (request.method !== 'GET' && request.method !== 'HEAD') return json({ success: false, message: 'Method not allowed.' }, 405);
 
     if (['/tenders-lite.json', '/results-lite.json', '/rates-lite.json'].includes(url.pathname)) {
