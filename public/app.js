@@ -12,6 +12,7 @@
   const TEXT_KEY = 'tenderone_text_size';
   const WATCH_KEY = 'tenderone_watch';
   const COMPARE_KEY = 'tenderone_compare';
+  const PREP_KEY = 'tenderone_prep';
   const PAGE = 30;
   const DAY = 86400000;
 
@@ -71,6 +72,8 @@
     byId: new Map(),
     compare: readJSON(COMPARE_KEY, [])
   };
+  const prep = readJSON(PREP_KEY, {}); // { 'WORKS/123': { status, done: { id: true }, at } }
+  const PREP_STATUS = [['interested', 'Interested'], ['preparing', 'Preparing'], ['submitted', 'Submitted'], ['won', 'Won'], ['lost', 'Lost']];
 
   function readJSON(key, fallback) {
     try { return JSON.parse(localStorage.getItem(key) || 'null') ?? fallback; } catch { return fallback; }
@@ -80,7 +83,7 @@
     try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
   }
   // ---------- Your lists, the same on every device (/api/prefs) ----------
-  const SYNC_KEYS = [SAVED_KEY, RSAVED_KEY, NOTES_KEY, WATCH_KEY, PROFILE_KEY];
+  const SYNC_KEYS = [SAVED_KEY, RSAVED_KEY, NOTES_KEY, WATCH_KEY, PROFILE_KEY, PREP_KEY];
   const SYNC_META = 'tenderone_sync_meta'; // when each list last changed on this device
   let syncPending = {}, syncTimer = null;
   function stamp(key, t) {
@@ -110,7 +113,7 @@
   }
   // First sync of a device that already had lists: keep both sides.
   function mergeLists(key, local, server) {
-    if (key === NOTES_KEY) return { ...(server || {}), ...(local || {}) };
+    if (key === NOTES_KEY || key === PREP_KEY) return { ...(server || {}), ...(local || {}) };
     if (key === PROFILE_KEY) return server ?? local;
     if (key === WATCH_KEY) {
       const out = [...(server || [])];
@@ -125,6 +128,7 @@
     if (key === NOTES_KEY) { for (const k of Object.keys(notes)) delete notes[k]; Object.assign(notes, value || {}); }
     if (key === WATCH_KEY) watch = Array.isArray(value) ? value : [];
     if (key === PROFILE_KEY) S.profile = value || null;
+    if (key === PREP_KEY) { for (const k of Object.keys(prep)) delete prep[k]; Object.assign(prep, value || {}); }
   }
   async function pullSync() {
     let server;
@@ -439,7 +443,7 @@
     return `<article class="card" data-id="${esc(t.id)}" tabindex="0" aria-label="${esc(t.title)}">
       <div class="card-top">
         <span class="badge ${esc(t.cat)}">${esc(t.cat)}</span>
-        ${t.access && t.access !== 'Open' ? `<span class="badge reserved${resvHas(t, MY_CAT) ? ' mine' : ''}">${esc(t.resv ? resvLabel(t.resv) : t.access)}</span>` : ''}${changedBadge(t)}
+        ${t.access && t.access !== 'Open' ? `<span class="badge reserved${resvHas(t, MY_CAT) ? ' mine' : ''}">${esc(t.resv ? resvLabel(t.resv) : t.access)}</span>` : ''}${changedBadge(t)}${prepBadge(t)}
         ${t.work ? `<span class="badge soft">${esc(t.work)}</span>` : ''}
         ${quickBadge(bidDays(t._pub, t._close))}
         ${left ? `<span class="due ${left.tone}">${esc(left.label)}</span>` : ''}
@@ -750,6 +754,7 @@
     // The bill of quantities gets the full page width below.
     $('tpBoqWrap').innerHTML = items;
     if (G.t === t) G.f = f;
+    renderPrep(t, f);
     if (itemCount) setupMyBid(t, f);
     updateBidGuide();
     renderWinMore();
@@ -895,6 +900,7 @@
         <div><span>Items priced</span><strong>${fmtInt(priced)} of ${fmtInt(inputs.length)}</strong><small>${priced && priced < inputs.length ? `other items counted at department rate (${money(rest, { full: true })})` : priced ? 'all items priced' : ''}</small></div>
         ${G.rec && priced ? `<div><span>vs suggested bid</span><strong>${money(Math.abs(total - G.rec), { full: true }) || '₹0'}</strong><small>${total <= G.rec ? 'below' : 'above'} the suggested ${money(G.rec, { full: true })}</small></div>` : ''}`;
       G.mine = { total, priced, all };
+      updatePrepChance();
       const fl = $('myBidFloat');
       if (fl) {
         fl.hidden = !priced;
@@ -1311,6 +1317,117 @@
     box.hidden = false;
   }
 
+  // ---------- Bid preparation: status, checklist, deadlines, win chance (synced like notes) ----------
+  const prepKey = (t) => `${t.cat}/${t.nit || t.id}`;
+  const prepBadge = (t) => {
+    const st = prep[prepKey(t)]?.status;
+    const label = PREP_STATUS.find(([k]) => k === st)?.[1];
+    return label ? `<span class="badge prep-${esc(st)}">${esc(label)}</span>` : '';
+  };
+  function savePrep(t, change) {
+    const k = prepKey(t);
+    const cur = prep[k] || { done: {} };
+    prep[k] = { ...cur, ...change, at: Date.now() };
+    if (!prep[k].status && !Object.keys(prep[k].done || {}).length) delete prep[k];
+    writeJSON(PREP_KEY, prep);
+  }
+  function prepItems(t, f) {
+    const items = [];
+    const add = (id, label, note) => { if (!items.some((x) => x.id === id)) items.push({ id, label, note }); };
+    for (const d of f.documents || []) if (!d.optional) add(`doc:${d.name}`, d.name, d.cover || 'Document to upload');
+    for (const q of f.technical || []) for (const d of q.documents || []) add(`doc:${d}`, d, 'Proof for a technical condition');
+    const m = f.money || {};
+    if (num(m.emd)) add('emd', `EMD paid — ${money(m.emd, { full: true })}`, m.emdGuarantee ? 'Cash or bank guarantee' : 'Pay on KPPP before the deadline');
+    if (num(m.fee)) add('fee', `Tender fee paid — ${money(m.fee, { full: true })}`, '');
+    add('dsc', 'Digital signature (DSC) working', 'Check it is not expired');
+    add('rates', 'Rates filled and checked', 'Use “My bid” below');
+    add('upload', 'Bid uploaded on KPPP', '');
+    add('submit', 'Bid submitted — acknowledgement saved', 'Download the receipt from KPPP');
+    return items;
+  }
+  function icsFile(t, when, title) {
+    const stamp = (ms) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const body = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//tender desk//EN', 'BEGIN:VEVENT',
+      `UID:${prepKey(t).replace('/', '-')}-${when}@tender`, `DTSTAMP:${stamp(Date.now())}`, `DTSTART:${stamp(when - 3600e3)}`, `DTEND:${stamp(when)}`,
+      `SUMMARY:${title.replace(/[,;\\]/g, ' ')}`, `DESCRIPTION:${(t.ref || '').replace(/[,;\\]/g, ' ')} — ${(t.title || '').slice(0, 150).replace(/[,;\\\n]/g, ' ')}`,
+      'BEGIN:VALARM', 'TRIGGER:-P1D', 'ACTION:DISPLAY', 'DESCRIPTION:Bid closes tomorrow', 'END:VALARM',
+      'BEGIN:VALARM', 'TRIGGER:-PT3H', 'ACTION:DISPLAY', 'DESCRIPTION:Bid closes in 3 hours', 'END:VALARM',
+      'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([body], { type: 'text/calendar' }));
+    a.download = `bid-${(t.ref || 'tender').replace(/[^\w-]+/g, '_')}.ics`;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }
+  function renderPrep(t, f) {
+    const host = $('tpFull');
+    if (!host || !f) return;
+    const items = prepItems(t, f);
+    const k = prepKey(t);
+    const left = (ms) => {
+      const d = ms - Date.now();
+      if (d <= 0) return 'closed';
+      const days = Math.floor(d / 864e5), hours = Math.floor((d % 864e5) / 36e5);
+      return days ? `${days} day${days === 1 ? '' : 's'} ${hours} hr left` : `${hours} hr ${Math.floor((d % 36e5) / 6e4)} min left`;
+    };
+    const dates = [
+      ['Questions to department by', kpppDate(f.dates?.queries)],
+      ['Pre-bid meeting', kpppDate(f.dates?.preBid)],
+      ['Bid submission closes', kpppDate(f.dates?.submission) || t._close],
+      ['Bids open', kpppDate(f.dates?.opening)],
+    ].filter(([, ms]) => ms);
+    const draw = () => {
+      const p = prep[k] || { done: {} };
+      const done = items.filter((x) => p.done?.[x.id]).length;
+      $('tpPrep').innerHTML = `<h3>Bid preparation <span class="count">${done}/${items.length} ready</span></h3>
+        <div class="prep-status" role="group" aria-label="My status">${PREP_STATUS.map(([s, label]) => `<button type="button" class="chip${p.status === s ? ' on' : ''}" data-pst="${s}" aria-pressed="${p.status === s}">${label}</button>`).join('')}</div>
+        <div class="prep-dates">${dates.map(([label, ms]) => `<div class="${ms > Date.now() ? '' : 'past'}"><span>${esc(label)}</span><b>${esc(dateFmt.format(new Date(ms)))}</b>${ms > Date.now() ? `<small>${esc(left(ms))}</small>` : '<small>passed</small>'}</div>`).join('')}</div>
+        ${dates.some(([l, ms]) => l.startsWith('Bid submission') && ms > Date.now()) ? '<button class="btn" type="button" id="prepCal">📅 Add closing time to my calendar</button>' : ''}
+        <ul class="prep-list">${items.map((x) => `<li><label><input type="checkbox" data-pdone="${esc(x.id)}"${p.done?.[x.id] ? ' checked' : ''}><span>${esc(x.label)}${x.note ? `<small>${esc(x.note)}</small>` : ''}</span></label></li>`).join('')}</ul>
+        <div class="prep-chance" id="prepChance"></div>
+        <p class="note">Saved on all your devices. The document list comes from this tender's conditions — check the NIT for anything else it asks for.</p>`;
+      $('tpPrep').querySelectorAll('[data-pst]').forEach((b) => b.addEventListener('click', () => {
+        const cur = prep[k]?.status;
+        savePrep(t, { status: cur === b.dataset.pst ? null : b.dataset.pst });
+        draw();
+        if (S.all.length) apply({ keepScroll: true });
+      }));
+      $('tpPrep').querySelectorAll('[data-pdone]').forEach((c) => c.addEventListener('change', () => {
+        const d = { ...(prep[k]?.done || {}) };
+        if (c.checked) d[c.dataset.pdone] = true; else delete d[c.dataset.pdone];
+        savePrep(t, { done: d, status: prep[k]?.status || (c.checked ? 'preparing' : null) });
+        draw();
+      }));
+      $('prepCal')?.addEventListener('click', () => {
+        const ms = dates.find(([l]) => l.startsWith('Bid submission'))[1];
+        icsFile(t, ms, `Bid closes: ${t.ref || t.title}`);
+      });
+      updatePrepChance();
+    };
+    let box = $('tpPrep');
+    if (!box) { host.insertAdjacentHTML('afterbegin', '<section class="panel prep" id="tpPrep"></section>'); box = $('tpPrep'); }
+    draw();
+  }
+  // Where "My bid" would have landed among this office's past similar winning bids.
+  const officePcts = new Map(); // tender → winning % of this office's similar past works
+  function updatePrepChance() {
+    const box = $('prepChance');
+    if (!box) return;
+    const pcts = (G.t && officePcts.get(prepKey(G.t))) || [];
+    const m = G.mine;
+    if (!m?.priced || !m.all || pcts.length < 3) {
+      box.innerHTML = pcts.length >= 3 ? `<small>Fill your rates in “My bid” to see how your % compares with ${fmtInt(pcts.length)} similar past tenders here.</small>` : '';
+      return;
+    }
+    const mine = (m.total / m.all - 1) * 100;
+    const beat = pcts.filter((p) => mine < p).length;
+    const share = Math.round((beat / pcts.length) * 100);
+    const tone = share >= 60 ? 'good' : share >= 30 ? 'mid' : 'low';
+    box.innerHTML = `<div class="chance ${tone}"><b>${mine <= 0 ? `${Math.abs(mine).toFixed(2)}% below` : `${mine.toFixed(2)}% above`} estimate</b>
+      <span>would have been lower than the winner in <strong>${fmtInt(beat)} of ${fmtInt(pcts.length)}</strong> similar past tenders at this office (${share}%).</span>
+      <small>Past pattern only — other bidders may quote differently this time. Never bid below your own cost.</small></div>`;
+  }
+
   // ---------- AI summary of a tender's conditions (/api/summary, Cloudflare's free built-in AI) ----------
   function bindSummary(t) {
     const box = $('tpAi');
@@ -1362,6 +1479,8 @@
     }
     if (list.length < 3) return;
     const pcts = list.map((w) => w[6]?.[0]?.[1]).filter((p) => p !== null && p !== undefined && p > -80 && p < 80);
+    officePcts.set(prepKey(t), pcts);
+    updatePrepChance();
     const med = median(pcts);
     const bidders = list.reduce((n, w) => n + (w[5] || 0), 0) / list.length;
     const close = med === null ? 0 : pcts.filter((p) => Math.abs(p - med) <= 0.5).length;

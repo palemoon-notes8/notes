@@ -646,3 +646,30 @@ dialog.wide{width:min(720px,calc(100% - 24px));max-height:calc(100vh - 40px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .badge.changed{background:#3a2a12;color:#ffc877;border-color:#6b4a1c}}
 .ai-sum h3{margin-top:0}
 .ai-list{margin:6px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:6px;line-height:1.45}
+
+.prep h3{margin-top:0}
+.prep-status{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px}
+.prep-status .chip.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.prep-dates{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:10px}
+.prep-dates>div{padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
+.prep-dates>div.past{opacity:.6}
+.prep-dates span{display:block;font-size:11.5px;font-weight:700;color:var(--muted)}
+.prep-dates b{display:block;font-size:13.5px}
+.prep-dates small{display:block;font-size:12px;color:var(--brand);font-weight:700}
+.prep-list{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:2px}
+.prep-list label{display:flex;gap:10px;align-items:flex-start;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer}
+.prep-list input{width:20px;height:20px;margin-top:1px;flex:none;accent-color:var(--brand)}
+.prep-list span{min-width:0;overflow-wrap:anywhere}
+.prep-list small{display:block;font-size:12px;color:var(--muted)}
+.prep-list input:checked+span{text-decoration:line-through;color:var(--muted)}
+.prep-chance{margin-top:12px}
+.chance{padding:10px 12px;border-radius:12px;border:1px solid var(--line)}
+.chance b{display:block;font-size:15px}
+.chance small{display:block;color:var(--muted);font-size:12px;margin-top:4px}
+.chance.good{background:rgba(22,163,74,.08);border-color:rgba(22,163,74,.35)}
+.chance.mid{background:rgba(234,179,8,.08);border-color:rgba(234,179,8,.4)}
+.chance.low{background:rgba(220,38,38,.07);border-color:rgba(220,38,38,.3)}
+.badge.prep-interested,.badge.prep-preparing{background:#e0e7ff;color:#3730a3}
+.badge.prep-submitted{background:#dbeafe;color:#1e40af}
+.badge.prep-won{background:#dcfce7;color:#166534}
+.badge.prep-lost{background:#f1f5f9;color:#475569}
