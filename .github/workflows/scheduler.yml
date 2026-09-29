@@ -35,7 +35,7 @@ jobs:
           run() { gh workflow run "$1" -R "$REPO" --ref main && echo "$(date -u +%H:%M) started $1"; }
           while [ $(( $(date +%s) - start )) -lt 19800 ]; do
             now=$(date +%s)
-            if [ $(( now - last_tenders )) -ge 3600 ]; then run collect-kppp.yml && last_tenders=$now; fi
+            if [ $(( now - last_tenders )) -ge 1800 ]; then run collect-kppp.yml && last_tenders=$now; fi
             if [ $(( now - last_details )) -ge 3600 ]; then run collect-details.yml && last_details=$now; fi
             if [ $(( now - last_results )) -ge 7200 ]; then run collect-results.yml && last_results=$now; fi
             if [ "$(date -u +%H)" = "22" ] && [ "$history_started" = 0 ]; then run collect-history.yml && history_started=1; fi
