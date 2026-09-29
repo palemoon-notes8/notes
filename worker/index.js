@@ -590,7 +590,14 @@ export class Prefs extends DurableObject {
 
 // A short plain-language summary of a tender's conditions, made by Cloudflare's built-in AI (free daily
 // allowance). Made only when asked, then kept in the Prefs store.
-const SUMMARY_MODEL = '@cf/meta/llama-3.1-8b-instruct';
+const SUMMARY_MODELS = [
+  '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+  '@cf/meta/llama-4-scout-17b-16e-instruct',
+  '@cf/mistralai/mistral-small-3.1-24b-instruct',
+  '@cf/meta/llama-3.1-8b-instruct-fast',
+  '@cf/meta/llama-3.1-8b-instruct',
+];
+const SUMMARY_PROMPT = 'You summarise Karnataka government tender conditions for a small contractor. Use ONLY the facts given; never guess numbers, dates or requirements that are not there. Reply in simple English as 4 to 7 short bullet points starting with "- ": what the work is; money (sanctioned amount, EMD, fee); who can bid (registration class, experience, turnover, reservation); certificates or documents they must submit; key dates; and anything unusual or risky (re-tender, pre-bid meeting, site visit, strict conditions). No introduction, no closing line.';
 async function tenderSummary(category, nitId, env, ctx) {
   if (!SECTIONS[category] || !/^\d+$/.test(nitId)) return json({ success: false, message: 'Unknown tender.' }, 400);
   if (!env.AI || !env.PREFS) return json({ success: false, message: 'AI summaries are not set up.' }, 503);
@@ -614,21 +621,28 @@ async function tenderSummary(category, nitId, env, ctx) {
     ...(detail.technical || []).map((t) => `Technical condition (${t.category || 'general'}): ${t.text}${t.documents?.length ? ` [documents: ${t.documents.join('; ')}]` : ''}`),
     ...(detail.documents || []).filter((x) => !x.optional).map((x) => `Required document: ${x.name}`),
   ].filter(Boolean).join('\n').slice(0, 9000);
-  let text;
-  try {
-    const out = await env.AI.run(SUMMARY_MODEL, {
-      max_tokens: 400,
-      messages: [
-        { role: 'system', content: 'You summarise Karnataka government tender conditions for a small contractor. Use ONLY the facts given; never guess numbers, dates or requirements that are not there. Reply in simple English as 4 to 7 short bullet points starting with "- ": what the work is; money (sanctioned amount, EMD, fee); who can bid (registration class, experience, turnover, reservation); certificates or documents they must submit; key dates; and anything unusual or risky (re-tender, pre-bid meeting, site visit, strict conditions). No introduction, no closing line.' },
-        { role: 'user', content: lines },
-      ],
-    });
-    text = String(out?.response || '').trim();
-  } catch (error) {
-    const quota = /limit|quota|neuron|429/i.test(String(error?.message || error));
-    return json({ success: false, message: quota ? 'Today\'s free AI allowance is used up. Try again tomorrow.' : 'The AI could not make a summary right now.' }, quota ? 429 : 502);
+  const messages = [
+    { role: 'system', content: SUMMARY_PROMPT },
+    { role: 'user', content: lines },
+  ];
+  // Models are tried in turn: Cloudflare retires older ones, and any of these is free within the allowance.
+  let text = '';
+  const errors = [];
+  for (const model of SUMMARY_MODELS) {
+    try {
+      const out = await env.AI.run(model, { max_tokens: 500, messages });
+      text = String(out?.response ?? out?.result?.response ?? out?.choices?.[0]?.message?.content ?? '').trim();
+      if (text) break;
+      errors.push(`${model}: empty answer`);
+    } catch (error) {
+      const why = String(error?.message || error);
+      errors.push(`${model.split('/').pop()}: ${why.slice(0, 120)}`);
+      if (/limit|quota|neuron|429|4006/i.test(why)) {
+        return json({ success: false, message: 'Today\'s free AI allowance is used up. Try again tomorrow.' }, 429);
+      }
+    }
   }
-  if (!text) return json({ success: false, message: 'The AI could not make a summary right now.' }, 502);
+  if (!text) return json({ success: false, message: `The AI could not make a summary right now (${errors.join(' | ').slice(0, 400)}).` }, 502);
   const value = { text, at: new Date().toISOString() };
   ctx.waitUntil(store.putSummary(key, value));
   return json({ success: true, saved: false, ...value });
