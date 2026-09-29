@@ -45,8 +45,9 @@ FULL_VIEW = {"WORKS": "works-tender-full-view", "GOODS": "goods-tender-full-view
 LIST_PAGES = {"WORKS": int(os.getenv("RESULTS_WORKS_PAGES", "20")),
               "GOODS": int(os.getenv("RESULTS_GOODS_PAGES", "6")),
               "SERVICES": int(os.getenv("RESULTS_SERVICES_PAGES", "6"))}
-# Only works results are wanted for now; add "GOODS" / "SERVICES" here to collect them again.
-CATEGORIES = ("WORKS",)
+# Works, goods and services results. Services have no public price statement, so for them only the
+# winner is known; goods get every supplier's price per item.
+CATEGORIES = ("WORKS", "GOODS", "SERVICES")
 # The website keeps the most recent results; older ones live in the history store
 # (collect_history.py) with Excel downloads.
 RECENT_LIMIT = int(os.getenv("RESULTS_RECENT_LIMIT", "6000"))

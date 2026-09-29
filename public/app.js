@@ -175,6 +175,7 @@
   // Who each reserved tender is for (SC / ST / Cat-1 / Cat-2A), read from its KPPP conditions by collect_details.py.
   const MY_CAT = 'SC';
   let reserved = new Map();
+  const changedBadge = (t) => (t.corr || t.addm ? `<span class="badge changed" title="The department changed this tender after publishing it — read the notice on KPPP">✎ ${t.corr && t.addm ? 'Corrigendum + addendum' : t.corr ? 'Corrigendum' : 'Addendum'}</span>` : '');
   const resvHas = (t, cat) => Boolean(t.resv && t.resv.split('/').includes(cat));
   const resvLabel = (v) => (v === 'Reserved' ? 'Reserved – category not stated' : `${v.replace('Cat-1', 'Category I').replace('Cat-2A', 'Category II-A').replace('Cat-2B', 'Category II-B')} reserved`);
   // The full conditions (reserved.json) win; until they are read, the title/description guess (t.resvGuess) is used.
@@ -293,6 +294,7 @@
       closing,
       access: $('fAccess').value,
       bidTime: Number($('fBidTime').value) || 0,
+      changed: $('fChanged').value,
       sort: $('fSort').value
     };
   }
@@ -322,6 +324,7 @@
       }
       if (closeBy && !(t._close && t._close <= closeBy)) continue;
       if (f.bidTime && !(bidDays(t._pub, t._close) < f.bidTime)) continue;
+      if (f.changed && !(f.changed === 'any' ? (t.corr || t.addm) : t[f.changed])) continue;
       if (terms.length && !terms.every((w) => t._hay.includes(w))) continue;
       out.push(t);
     }
@@ -354,13 +357,14 @@
     if (f.closing) chips.push(['fClosing', `Closing in ${f.closing} days`]);
     if (f.access) chips.push(['fAccess', $('fAccess').selectedOptions[0].text]);
     if (f.bidTime) chips.push(['fBidTime', $('fBidTime').selectedOptions[0].text]);
+    if (f.changed) chips.push(['fChanged', $('fChanged').selectedOptions[0].text]);
     if (S.savedOnly) chips.push(['saved', 'Saved only']);
     if (S.forMe) chips.push(['forMe', 'For me']);
     $('chips').innerHTML = chips.map(([k, label]) => `<button type="button" class="chip" data-clear="${k}">${esc(label)}<b aria-hidden="true">×</b></button>`).join('');
   }
 
   function syncControls(f) {
-    for (const id of ['fDistrict', 'fDept', 'fValue', 'fClosing', 'fAccess', 'fBidTime']) $(id).classList.toggle('set', Boolean($(id).value));
+    for (const id of ['fDistrict', 'fDept', 'fValue', 'fClosing', 'fAccess', 'fBidTime', 'fChanged']) $(id).classList.toggle('set', Boolean($(id).value));
     document.querySelectorAll('.stat[data-cat]').forEach((el) => el.classList.toggle('active', el.dataset.cat === S.cat && !f.closing));
     document.querySelector('.stat.soon').classList.toggle('active', S.soon === 7 && !$('fClosing').value);
     $('savedBtn').classList.toggle('on', S.savedOnly);
@@ -435,7 +439,7 @@
     return `<article class="card" data-id="${esc(t.id)}" tabindex="0" aria-label="${esc(t.title)}">
       <div class="card-top">
         <span class="badge ${esc(t.cat)}">${esc(t.cat)}</span>
-        ${t.access && t.access !== 'Open' ? `<span class="badge reserved${resvHas(t, MY_CAT) ? ' mine' : ''}">${esc(t.resv ? resvLabel(t.resv) : t.access)}</span>` : ''}
+        ${t.access && t.access !== 'Open' ? `<span class="badge reserved${resvHas(t, MY_CAT) ? ' mine' : ''}">${esc(t.resv ? resvLabel(t.resv) : t.access)}</span>` : ''}${changedBadge(t)}
         ${t.work ? `<span class="badge soft">${esc(t.work)}</span>` : ''}
         ${quickBadge(bidDays(t._pub, t._close))}
         ${left ? `<span class="due ${left.tone}">${esc(left.label)}</span>` : ''}
@@ -521,7 +525,7 @@
         <div class="wrap">
           <div class="row">
             <span class="badge ${esc(t.cat)}">${esc(t.cat)}</span>
-            ${t.access ? `<span class="badge ${t.access === 'Open' ? 'soft' : 'reserved'}${resvHas(t, MY_CAT) ? ' mine' : ''}">${esc(t.resv ? resvLabel(t.resv) : t.access + ' tender')}</span>` : ''}
+            ${t.access ? `<span class="badge ${t.access === 'Open' ? 'soft' : 'reserved'}${resvHas(t, MY_CAT) ? ' mine' : ''}">${esc(t.resv ? resvLabel(t.resv) : t.access + ' tender')}</span>` : ''}${changedBadge(t)}
             ${t.work ? `<span class="badge soft">${esc(t.work)}</span>` : ''}
           </div>
           <h2 id="dTitle">${esc(t.title)}</h2>
@@ -1529,7 +1533,7 @@
     $('rMedian').textContent = sum.median === null ? '—' : `${Math.abs(sum.median).toFixed(1)}% ${sum.median <= 0 ? 'below' : 'above'}`;
     $('rBidders').textContent = sum.bidders === null ? '—' : sum.bidders.toFixed(1);
     $('rWinners').innerHTML = sum.top.length ? sum.top.map(([n, c]) => `<li><button type="button" data-win="${esc(n)}">${esc(n)}</button><b>${c}</b></li>`).join('') : '<li>—</li>';
-    $('rTitle').innerHTML = `${fmtInt(list.length)} <span>awarded works tenders</span>`;
+    $('rTitle').innerHTML = `${fmtInt(list.length)} <span>awarded ${{ WORKS: 'works ', GOODS: 'goods ', SERVICES: 'services ' }[$('rCat').value] || ''}tenders</span>`;
     const people = new Map();
     if (R.q && norm(R.q).trim().length >= 3) {
       for (const r of list) for (const n of matchedBidders(r, R.q)) { const k = nameKey(n); const v = people.get(k) || { name: n, n: 0 }; v.n++; people.set(k, v); }
@@ -2540,7 +2544,7 @@
   function reset() {
     S.cat = 'ALL'; S.soon = 0; S.savedOnly = false; S.forMe = false; S.q = '';
     $('q').value = '';
-    for (const id of ['fDistrict', 'fDept', 'fValue', 'fClosing', 'fAccess', 'fBidTime']) $(id).value = '';
+    for (const id of ['fDistrict', 'fDept', 'fValue', 'fClosing', 'fAccess', 'fBidTime', 'fChanged']) $(id).value = '';
     $('fSort').value = 'new';
     apply();
   }
@@ -2555,7 +2559,7 @@
       S.q = e.target.value; apply({ keepScroll: true });
     }, 140);
   });
-  for (const id of ['fDistrict', 'fDept', 'fValue', 'fAccess', 'fBidTime', 'fSort']) $(id).addEventListener('change', () => apply({ keepScroll: true }));
+  for (const id of ['fDistrict', 'fDept', 'fValue', 'fAccess', 'fBidTime', 'fChanged', 'fSort']) $(id).addEventListener('change', () => apply({ keepScroll: true }));
   $('fClosing').addEventListener('change', () => { S.soon = 0; apply({ keepScroll: true }); });
   $('scBanner').addEventListener('click', () => { $('fAccess').value = MY_CAT; $('fSort').value = 'closing'; apply(); });
   document.querySelectorAll('.stat[data-cat]').forEach((el) => el.addEventListener('click', () => {

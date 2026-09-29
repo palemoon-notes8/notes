@@ -141,6 +141,11 @@ def slim(tender):
     }
     if description and description != title:
         record["desc"] = description
+    # KPPP's list says whether the department issued a corrigendum or an addendum.
+    if raw.get("canViewCorrigendum"):
+        record["corr"] = 1
+    if raw.get("canViewAddendum"):
+        record["addm"] = 1
     if record["access"] == "Reserved":
         record["resvGuess"] = list_reservation(title, description)
     return {k: v for k, v in record.items() if v not in (None, "")}
