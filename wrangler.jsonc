@@ -14,6 +14,8 @@
     "bindings": [{ "name": "PREFS", "class_name": "Prefs" }]
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Prefs"] }],
+  // Cloudflare's built-in AI for tender summaries (free daily allowance; see tenderSummary in worker/index.js).
+  "ai": { "binding": "AI" },
   "observability": {
     "enabled": true
   }

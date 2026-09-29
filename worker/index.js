@@ -579,6 +579,59 @@ export class Prefs extends DurableObject {
     await this.ctx.storage.put('prefs', current);
     return current;
   }
+  // Saved AI summaries of tenders, so each is made once.
+  async getSummary(key) {
+    return (await this.ctx.storage.get(`sum:${key}`)) || null;
+  }
+  async putSummary(key, value) {
+    await this.ctx.storage.put(`sum:${key}`, value);
+  }
+}
+
+// A short plain-language summary of a tender's conditions, made by Cloudflare's built-in AI (free daily
+// allowance). Made only when asked, then kept in the Prefs store.
+const SUMMARY_MODEL = '@cf/meta/llama-3.1-8b-instruct';
+async function tenderSummary(category, nitId, env, ctx) {
+  if (!SECTIONS[category] || !/^\d+$/.test(nitId)) return json({ success: false, message: 'Unknown tender.' }, 400);
+  if (!env.AI || !env.PREFS) return json({ success: false, message: 'AI summaries are not set up.' }, 503);
+  const store = env.PREFS.get(env.PREFS.idFromName('me'));
+  const key = `${category}/${nitId}`;
+  const saved = await store.getSummary(key);
+  if (saved) return json({ success: true, saved: true, ...saved });
+  const detail = await (await tenderDetail(category, nitId, ctx)).json().catch(() => null);
+  if (!detail?.success) return json({ success: false, message: 'The tender details could not be read from KPPP right now.' }, 502);
+  const m = detail.money || {};
+  const d = detail.dates || {};
+  const lines = [
+    `Work: ${detail.description || ''} (${detail.ref || ''})`,
+    m.provisional ? `Sanctioned amount: Rs ${m.provisional}` : '',
+    m.emd ? `EMD: Rs ${m.emd}` : '', m.fee ? `Tender fee: Rs ${m.fee}` : '',
+    d.submission ? `Bid submission ends: ${d.submission}` : '', d.opening ? `Bids open: ${d.opening}` : '',
+    d.preBid ? `Pre-bid meeting: ${d.preBid}` : '',
+    detail.terms?.call > 1 ? `This is call number ${detail.terms.call} (re-tender).` : '',
+    detail.terms?.evaluation ? `Evaluation: ${detail.terms.evaluation}` : '',
+    ...(detail.eligibility || []).map((e) => `Eligibility: ${e}`),
+    ...(detail.technical || []).map((t) => `Technical condition (${t.category || 'general'}): ${t.text}${t.documents?.length ? ` [documents: ${t.documents.join('; ')}]` : ''}`),
+    ...(detail.documents || []).filter((x) => !x.optional).map((x) => `Required document: ${x.name}`),
+  ].filter(Boolean).join('\n').slice(0, 9000);
+  let text;
+  try {
+    const out = await env.AI.run(SUMMARY_MODEL, {
+      max_tokens: 400,
+      messages: [
+        { role: 'system', content: 'You summarise Karnataka government tender conditions for a small contractor. Use ONLY the facts given; never guess numbers, dates or requirements that are not there. Reply in simple English as 4 to 7 short bullet points starting with "- ": what the work is; money (sanctioned amount, EMD, fee); who can bid (registration class, experience, turnover, reservation); certificates or documents they must submit; key dates; and anything unusual or risky (re-tender, pre-bid meeting, site visit, strict conditions). No introduction, no closing line.' },
+        { role: 'user', content: lines },
+      ],
+    });
+    text = String(out?.response || '').trim();
+  } catch (error) {
+    const quota = /limit|quota|neuron|429/i.test(String(error?.message || error));
+    return json({ success: false, message: quota ? 'Today\'s free AI allowance is used up. Try again tomorrow.' : 'The AI could not make a summary right now.' }, quota ? 429 : 502);
+  }
+  if (!text) return json({ success: false, message: 'The AI could not make a summary right now.' }, 502);
+  const value = { text, at: new Date().toISOString() };
+  ctx.waitUntil(store.putSummary(key, value));
+  return json({ success: true, saved: false, ...value });
 }
 
 async function prefs(request, env) {
@@ -614,6 +667,8 @@ export default {
     const allowed = OPEN_PATHS.has(url.pathname) || (await signedIn(request));
     if (!allowed) return notFound();
     if (url.pathname === '/api/prefs') return prefs(request, env);
+    const summary = url.pathname.match(/^\/api\/summary\/(WORKS|GOODS|SERVICES)\/(\d+)$/);
+    if (summary) return tenderSummary(summary[1], summary[2], env, ctx);
     if (request.method !== 'GET' && request.method !== 'HEAD') return json({ success: false, message: 'Method not allowed.' }, 405);
 
     if (['/tenders-lite.json', '/results-lite.json', '/rates-lite.json'].includes(url.pathname)) {

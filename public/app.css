@@ -644,3 +644,5 @@ dialog.wide{width:min(720px,calc(100% - 24px));max-height:calc(100vh - 40px)}
 .badge.changed{background:#fff4e5;color:#9a4a00;border:1px solid #f5c98a}
 :root[data-theme="dark"] .badge.changed{background:#3a2a12;color:#ffc877;border-color:#6b4a1c}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .badge.changed{background:#3a2a12;color:#ffc877;border-color:#6b4a1c}}
+.ai-sum h3{margin-top:0}
+.ai-list{margin:6px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:6px;line-height:1.45}

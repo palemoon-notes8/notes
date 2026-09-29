@@ -548,6 +548,7 @@
             ${t._pub ? `<dt>Published</dt><dd>${esc(dateFmt.format(new Date(t._pub)))}</dd>` : ''}
             <dt>Bid submission ends</dt><dd>${esc(closeText)}</dd>
           </dl></section>
+          <section class="panel ai-sum" id="tpAi"><h3>✨ In short</h3><p class="muted-p">A plain-language summary of this tender's conditions, made by AI.</p><button class="btn" type="button" id="aiGo">✨ Summarise this tender</button></section>
           <section class="panel quick-note" id="tpQuick" hidden></section>
           <section class="panel rivals" id="tpRivals" hidden></section>
           <section class="panel office-past" id="tpOffice" hidden></section>
@@ -582,6 +583,7 @@
     renderQuickNote(t);
     renderRivals(t);
     renderOfficePast(t);
+    bindSummary(t);
     if (location.hash !== '#t=' + t.id) history.pushState({ tender: t.id }, '', '#t=' + encodeURIComponent(t.id));
   }
 
@@ -1307,6 +1309,30 @@
         <td><button type="button" class="linkish" data-contractor="${esc(name)}">${isWatched(name) ? '👁 ' : ''}${esc(splitName(name).firm)}</button><small class="who">Last bid ${esc(monthYear(last))}</small><small class="rv-sum">${fmtInt(bids)} bids · <b>${fmtInt(wins)} won</b>${pct === null ? '' : ` · ${esc(pctText(pct).replace(' estimate', ''))}`}</small></td></tr>`).join('')}</tbody></table></div>
       <p class="note">From past results only. Tap a name for every tender they bid and their item-wise rates.</p>`;
     box.hidden = false;
+  }
+
+  // ---------- AI summary of a tender's conditions (/api/summary, Cloudflare's free built-in AI) ----------
+  function bindSummary(t) {
+    const box = $('tpAi');
+    if (!box || !t.nit) { if (box) box.hidden = true; return; }
+    const show = (d) => {
+      const items = String(d.text).split(/\n+/).map((l) => l.replace(/^\s*[-*•]\s*/, '').trim()).filter(Boolean);
+      box.innerHTML = `<h3>✨ In short</h3><ul class="ai-list">${items.map((l) => `<li>${esc(l.replace(/\*\*/g, ''))}</li>`).join('')}</ul>
+        <p class="note">AI summary — confirm on the tender before bidding.</p>`;
+    };
+    $('aiGo').addEventListener('click', async () => {
+      const btn = $('aiGo');
+      btn.disabled = true; btn.textContent = 'Reading the conditions…';
+      try {
+        const r = await fetch(`/api/summary/${encodeURIComponent(t.cat)}/${encodeURIComponent(t.nit)}`);
+        const d = await r.json().catch(() => ({}));
+        if (G.t !== t) return;
+        if (d.success) show(d);
+        else { btn.disabled = false; btn.textContent = '✨ Try again'; toast(d.message || 'Could not make a summary'); }
+      } catch {
+        btn.disabled = false; btn.textContent = '✨ Try again'; toast('Could not make a summary');
+      }
+    });
   }
 
   // ---------- How this office's similar past works went (offices/{xx}.json via /api/office) ----------
