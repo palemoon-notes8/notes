@@ -1194,8 +1194,10 @@
         d.innerHTML = $('rDistrict').innerHTML;
         d.value = current;
         renderCharts();
+        renderMap();
       }).catch(() => { $('rChartsBody').innerHTML = '<p class="muted-p">Past results are still being collected.</p>'; });
       renderQuickPanel();
+      renderMap();
     }
     $('q').value = mode === 'results' ? R.q : mode === 'bidders' ? B.q : S.q;
     $('q').placeholder = mode === 'results' ? 'Search results by work, department, town or contractor name…'
@@ -1452,6 +1454,96 @@
     box.innerHTML = `<div class="chance ${tone}"><b>${mine <= 0 ? `${Math.abs(mine).toFixed(2)}% below` : `${mine.toFixed(2)}% above`} estimate</b>
       <span>would have been lower than the winner in <strong>${fmtInt(beat)} of ${fmtInt(pcts.length)}</strong> similar past tenders at this office (${share}%).</span>
       <small>Past pattern only — other bidders may quote differently this time. Never bid below your own cost.</small></div>`;
+  }
+
+  // ---------- Karnataka map (Charts tab): districts coloured by the chosen figure ----------
+  // Boundaries: karnataka-map.json (2011 districts, simplified). Vijayanagara (formed 2021) is counted with Ballari.
+  let kaShape = null, kaMetric = 'live', kaHist = null;
+  const KA_MERGE = { Vijayanagara: 'Ballari' };
+  const KA_METRICS = {
+    live: { label: 'Live tenders', fmt: (v) => fmtInt(v) },
+    value: { label: 'Value of live tenders', fmt: (v) => money(v) || '₹0' },
+    sc: { label: 'SC-reserved live tenders', fmt: (v) => fmtInt(v) },
+    light: { label: 'Light-paperwork live tenders', fmt: (v) => fmtInt(v) },
+    disc: { label: 'Typical winning bid, % below estimate (works, last 12 months)', fmt: (v) => `${v.toFixed(1)}% below` },
+    bidders: { label: 'Average bidders per works tender (last 12 months)', fmt: (v) => v.toFixed(1) },
+  };
+  function kaStats() {
+    const now = Date.now();
+    const st = {};
+    const get = (d) => (st[d] ||= { live: 0, value: 0, sc: 0, light: 0, pcts: [], bids: [] });
+    for (const t of S.all) {
+      if (!t.district || (t._close && t._close < now)) continue;
+      const g = get(KA_MERGE[t.district] || t.district);
+      g.live++; g.value += num(t.value) || 0;
+      if (resvHas(t, MY_CAT)) g.sc++;
+      if (t.light) g.light++;
+    }
+    // Winning discount and bidders: the whole works history, last 12 months (districts.json, nightly).
+    const hist = {};
+    for (const [d, [pct, bids, n]] of Object.entries(kaHist?.districts || {})) {
+      const h = (hist[KA_MERGE[d] || d] ||= { w: 0, pct: 0, pn: 0, bids: 0 });
+      h.w += n; h.bids += bids * n;
+      if (pct !== null) { h.pct += pct * n; h.pn += n; }
+    }
+    for (const [d, h] of Object.entries(hist)) {
+      const g = get(d);
+      g.disc = h.pn ? -h.pct / h.pn : null;
+      g.bidders = h.w ? h.bids / h.w : null;
+    }
+    return st;
+  }
+  async function renderMap() {
+    const host = $('kaSvg');
+    if (!host) return;
+    if (!kaShape) {
+      try { kaShape = await (await fetch('/karnataka-map.json')).json(); } catch { host.innerHTML = '<p class="muted-p">The map could not be loaded.</p>'; return; }
+    }
+    if (!kaHist) { try { const r = await fetch('/districts.json'); kaHist = r.ok ? await r.json() : { districts: {} }; } catch { kaHist = { districts: {} }; } }
+    const st = kaStats();
+    const m = KA_METRICS[kaMetric];
+    const vals = Object.keys(kaShape.districts).map((d) => st[d]?.[kaMetric]).filter((v) => v !== null && v !== undefined && v > 0).sort((a, b) => a - b);
+    // Five classes by quantile of the districts that have a value; zero / no data stays neutral.
+    const cuts = [0.2, 0.4, 0.6, 0.8].map((q) => vals[Math.min(vals.length - 1, Math.floor(q * vals.length))]);
+    const cls = (v) => (v === null || v === undefined || v <= 0 ? 0 : 1 + cuts.filter((c) => v > c).length);
+    host.innerHTML = `<svg viewBox="0 0 ${kaShape.w} ${kaShape.h}" role="img" aria-label="Map of Karnataka districts: ${esc(m.label)}">
+      ${Object.entries(kaShape.districts).map(([d, s]) => {
+        const v = st[d]?.[kaMetric];
+        return `<path d="${s.d}" class="ka-d ka-c${cls(v)}" data-kad="${esc(d)}" tabindex="0" role="button" aria-label="${esc(d)}: ${v === null || v === undefined ? 'no data' : esc(m.fmt(v))}"></path>`;
+      }).join('')}</svg>`;
+    const ranked = Object.keys(kaShape.districts).map((d) => [d, st[d]?.[kaMetric]]).filter(([, v]) => v !== null && v !== undefined).sort((a, b) => b[1] - a[1]);
+    const legend = [1, 2, 3, 4, 5].map((c, i) => {
+      const lo = i === 0 ? vals[0] : cuts[i - 1], hi = i === 4 ? vals[vals.length - 1] : cuts[i];
+      return lo === undefined ? '' : `<span><i class="ka-c${c}"></i>${esc(m.fmt(lo))}${hi !== lo ? ` – ${esc(m.fmt(hi))}` : ''}</span>`;
+    }).join('');
+    $('kaSide').innerHTML = `<p class="ka-title">${esc(m.label)}</p><div class="ka-legend">${legend}<span><i class="ka-c0"></i>None / not enough data</span></div>
+      <ol class="ka-rank">${ranked.slice(0, 31).map(([d, v], i) => `<li${i >= 10 ? ' class="more" hidden' : ''}><button type="button" class="linkish" data-kad="${esc(d)}">${esc(d === 'Ballari' ? 'Ballari + Vijayanagara' : d)}</button><b>${esc(m.fmt(v))}</b></li>`).join('')}</ol>
+      ${ranked.length > 10 ? '<button type="button" class="btn ghost" id="kaMore">Show all districts</button>' : ''}
+      <p class="note">Tap a district to see its live tenders. Vijayanagara is counted with Ballari (the map shows 2011 district borders).</p>`;
+    $('kaMore')?.addEventListener('click', (e) => { $('kaSide').querySelectorAll('.more').forEach((li) => { li.hidden = false; }); e.target.remove(); });
+  }
+  function kaOpen(d) {
+    const want = d === 'Ballari' ? 'Ballari' : d;
+    setMode('live');
+    const sel = $('fDistrict');
+    if ([...sel.options].some((o) => o.value === want)) sel.value = want;
+    apply();
+    window.scrollTo({ top: $('liveView').offsetTop - 10, behavior: 'smooth' });
+  }
+  function kaTip(e, d) {
+    const tip = $('kaTip');
+    if (!d) { tip.hidden = true; return; }
+    const g = kaStats()[d] || {};
+    const line = (k) => (g[k] === null || g[k] === undefined ? '—' : KA_METRICS[k].fmt(g[k]));
+    tip.innerHTML = `<b>${esc(d === 'Ballari' ? 'Ballari + Vijayanagara' : d)}</b>
+      <span>Live tenders <em>${esc(line('live'))}</em></span><span>Value <em>${esc(line('value'))}</em></span>
+      <span>SC reserved <em>${esc(line('sc'))}</em></span><span>Light paperwork <em>${esc(line('light'))}</em></span>
+      <span>Winning bid <em>${esc(line('disc'))}</em></span><span>Bidders <em>${esc(line('bidders'))}</em></span>`;
+    tip.hidden = false;
+    const box = $('kaMap').getBoundingClientRect();
+    const x = Math.min(e.clientX - box.left + 14, box.width - tip.offsetWidth - 8);
+    tip.style.left = `${Math.max(8, x)}px`;
+    tip.style.top = `${e.clientY - box.top + 14}px`;
   }
 
   // ---------- AI summary of a tender's conditions (/api/summary, Cloudflare's free built-in AI) ----------
@@ -2771,6 +2863,20 @@
   document.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode)));
   for (const id of ['rCat', 'rDistrict', 'rDept', 'rWork', 'rSort', 'rPeriod', 'rValue', 'rBidderCount']) $(id).addEventListener('change', () => applyResults());
   $('rSavedBtn').addEventListener('click', () => { R.savedOnly = !R.savedOnly; applyResults(); });
+  $('kaMap').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-kam]');
+    if (b) {
+      kaMetric = b.dataset.kam;
+      $('kaMap').querySelectorAll('[data-kam]').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); });
+      renderMap();
+      return;
+    }
+    const d = e.target.closest('[data-kad]');
+    if (d) kaOpen(d.dataset.kad);
+  });
+  $('kaMap').addEventListener('keydown', (e) => { const d = e.target.closest('path[data-kad]'); if (d && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); kaOpen(d.dataset.kad); } });
+  $('kaMap').addEventListener('pointermove', (e) => { const d = e.target.closest('path[data-kad]'); kaTip(e, d?.dataset.kad); });
+  $('kaMap').addEventListener('pointerleave', () => { $('kaTip').hidden = true; });
   $('cDistrict').addEventListener('change', () => { $('cDistrict').classList.toggle('set', Boolean($('cDistrict').value)); if (R.all) renderCharts(); renderQuickPanel(); });
   $('rExport').addEventListener('click', () => { if (R.filtered.length) exportResults(); else toast('No results to export'); });
   $('rSavedCount').textContent = R.saved.size;

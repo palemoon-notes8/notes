@@ -719,6 +719,29 @@ def collect(history, out, shard, shards):
     print(f"Part {shard + 1} done: {ok} new, {failed} failed, {stats['pages_done']}/{len(mine)} pages ({int(time.monotonic() - started)}s)")
 
 
+def write_districts(results, root, since_months=12):
+    """districts.json: per district over the last `since_months` months of awarded works -
+    [median winning bid % against the estimate, average bidders, tenders] - for the Karnataka map."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=since_months * 30)).strftime("%Y-%m-%d")
+    groups = defaultdict(lambda: {"pct": [], "bids": []})
+    for r in results:
+        bidders = r.get("bidders") or []
+        if not r.get("district") or (r.get("closed") or "")[:10] < cutoff or not bidders:
+            continue
+        g = groups[r["district"]]
+        g["bids"].append(len(bidders))
+        top = min(bidders, key=lambda b: b.get("rank") or 99)
+        if top.get("pct") is not None and -80 < top["pct"] < 80:
+            g["pct"].append(top["pct"])
+    out = {d: [round(sorted(g["pct"])[len(g["pct"]) // 2], 2) if g["pct"] else None,
+               round(sum(g["bids"]) / len(g["bids"]), 2), len(g["bids"])]
+           for d, g in groups.items() if len(g["bids"]) >= 5}
+    (root / "districts.json").write_text(json.dumps({"generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                                                      "since_months": since_months, "districts": out},
+                                                     ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    return len(out)
+
+
 def office_shard(office):
     return f"{zlib.crc32(office.encode('utf-8')) & 0xff:02x}"
 
@@ -788,6 +811,7 @@ def build(history, parts, itemwise_out=None):
     write_quick(results, history)
     write_competitors(results, history)
     write_offices(results, history)
+    write_districts(results, history)
     itemwise = write_itemwise(store, history, itemwise_out) if itemwise_out else []
     closed = sorted(r["closed"] for r in results if r.get("closed"))
     (history / "index.json").write_text(json.dumps({

@@ -15,8 +15,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/app.css?v=20260930b">
-<script src="/app.js?v=20260930b" defer></script>
+<link rel="stylesheet" href="/app.css?v=20260930c">
+<script src="/app.js?v=20260930c" defer></script>
 </head>
 <body>
 <header class="hero">
@@ -209,6 +209,19 @@
 </main>
 
 <main class="wrap" id="chartsView" hidden>
+  <section class="panel ka-map" id="kaMap">
+    <h3>Karnataka map</h3>
+    <div class="ka-metrics" role="group" aria-label="Show on map">
+      <button type="button" class="chip on" data-kam="live" aria-pressed="true">Live tenders</button>
+      <button type="button" class="chip" data-kam="value" aria-pressed="false">Value of live tenders</button>
+      <button type="button" class="chip" data-kam="sc" aria-pressed="false">SC reserved</button>
+      <button type="button" class="chip" data-kam="light" aria-pressed="false">Light paperwork</button>
+      <button type="button" class="chip" data-kam="disc" aria-pressed="false">Typical winning discount</button>
+      <button type="button" class="chip" data-kam="bidders" aria-pressed="false">Bidders per tender</button>
+    </div>
+    <div class="ka-body"><div class="ka-svgwrap" id="kaSvg"><p class="muted-p">Loading map…</p></div><div class="ka-side" id="kaSide"></div></div>
+    <div class="ka-tip" id="kaTip" hidden></div>
+  </section>
   <section class="filters">
     <div class="filter-row">
       <div class="select"><select id="cDistrict" aria-label="District"><option value="">All districts</option></select></div>

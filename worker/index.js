@@ -694,6 +694,7 @@ export default {
     if (url.pathname === '/bidders.json') return historyFile('bidders.json', ctx, 1800);
     if (url.pathname === '/quick.json') return historyFile('quick.json', ctx, 1800);
     if (url.pathname === '/competitors.json') return historyFile('competitors.json', ctx, 1800);
+    if (url.pathname === '/districts.json') return historyFile('districts.json', ctx, 1800);
     if (url.pathname === '/api/office') return officeWorks(url.searchParams.get('name'), ctx);
     if (url.pathname === '/reserved.json') return historyFile('details/reserved.json', ctx, 600, false, 'data');
     if (url.pathname === '/paperwork.json') return historyFile('details/paperwork.json', ctx, 600, false, 'data');
