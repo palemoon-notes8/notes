@@ -192,6 +192,7 @@
       const p = paperwork.get(String(t.nit));
       t.papers = p ? p[0] : null;
       t.light = Boolean(p && p[1] === 0 && p[0] <= (t.cat === 'WORKS' ? 6 : 3));
+      t.fund = t.head || (p && p[2]) || null;
     }
   }
   function loadPaperwork() {
@@ -319,6 +320,7 @@
       bidTime: Number($('fBidTime').value) || 0,
       changed: $('fChanged').value,
       paper: $('fPaper').value,
+      head: $('fHead').value,
       sort: $('fSort').value
     };
   }
@@ -350,6 +352,7 @@
       if (f.bidTime && !(bidDays(t._pub, t._close) < f.bidTime)) continue;
       if (f.changed && !(f.changed === 'any' ? (t.corr || t.addm) : t[f.changed])) continue;
       if (f.paper === 'light' && !t.light) continue;
+      if (f.head && !(t.fund && (f.head === 'named' || f.head === t.fund[1] || f.head === t.fund[0]))) continue;
       if (terms.length && !terms.every((w) => t._hay.includes(w))) continue;
       out.push(t);
     }
@@ -384,13 +387,14 @@
     if (f.bidTime) chips.push(['fBidTime', $('fBidTime').selectedOptions[0].text]);
     if (f.changed) chips.push(['fChanged', $('fChanged').selectedOptions[0].text]);
     if (f.paper) chips.push(['fPaper', $('fPaper').selectedOptions[0].text]);
+    if (f.head) chips.push(['fHead', $('fHead').selectedOptions[0].text]);
     if (S.savedOnly) chips.push(['saved', 'Saved only']);
     if (S.forMe) chips.push(['forMe', 'For me']);
     $('chips').innerHTML = chips.map(([k, label]) => `<button type="button" class="chip" data-clear="${k}">${esc(label)}<b aria-hidden="true">×</b></button>`).join('');
   }
 
   function syncControls(f) {
-    for (const id of ['fDistrict', 'fDept', 'fValue', 'fClosing', 'fAccess', 'fBidTime', 'fChanged', 'fPaper']) $(id).classList.toggle('set', Boolean($(id).value));
+    for (const id of ['fDistrict', 'fDept', 'fValue', 'fClosing', 'fAccess', 'fBidTime', 'fChanged', 'fPaper', 'fHead']) $(id).classList.toggle('set', Boolean($(id).value));
     document.querySelectorAll('.stat[data-cat]').forEach((el) => el.classList.toggle('active', el.dataset.cat === S.cat && !f.closing));
     document.querySelector('.stat.soon').classList.toggle('active', S.soon === 7 && !$('fClosing').value);
     $('savedBtn').classList.toggle('on', S.savedOnly);
@@ -465,7 +469,7 @@
     return `<article class="card" data-id="${esc(t.id)}" tabindex="0" aria-label="${esc(t.title)}">
       <div class="card-top">
         <span class="badge ${esc(t.cat)}">${esc(t.cat)}</span>
-        ${t.access && t.access !== 'Open' ? `<span class="badge reserved${resvHas(t, MY_CAT) ? ' mine' : ''}">${esc(t.resv ? resvLabel(t.resv) : t.access)}</span>` : ''}${changedBadge(t)}${t.light ? `<span class="badge light" title="${esc(t.papers)} papers to submit, no turnover / experience / machinery proofs">📄 Light paperwork</span>` : ''}${prepBadge(t)}
+        ${t.access && t.access !== 'Open' ? `<span class="badge reserved${resvHas(t, MY_CAT) ? ' mine' : ''}">${esc(t.resv ? resvLabel(t.resv) : t.access)}</span>` : ''}${changedBadge(t)}${t.light ? `<span class="badge light" title="${esc(t.papers)} papers to submit, no turnover / experience / machinery proofs">📄 Light paperwork</span>` : ''}${t.fund ? `<span class="badge fund${t.fund[1] ? ' ' + esc(t.fund[1]) : ''}" title="Funding head named in the tender${t.fund[1] === 'good' ? ' — contractors compete hard for these (money trusted)' : t.fund[1] === 'watch' ? ' — contractors often avoid these (payments can be slow)' : ''}">${t.fund[1] === 'watch' ? '⚠' : '💰'} ${esc(t.fund[0])}</span>` : ''}${prepBadge(t)}
         ${t.work ? `<span class="badge soft">${esc(t.work)}</span>` : ''}
         ${quickBadge(bidDays(t._pub, t._close))}
         ${left ? `<span class="due ${left.tone}">${esc(left.label)}</span>` : ''}
@@ -2711,7 +2715,7 @@
   function reset() {
     S.cat = 'ALL'; S.soon = 0; S.savedOnly = false; S.forMe = false; S.q = '';
     $('q').value = '';
-    for (const id of ['fDistrict', 'fDept', 'fValue', 'fClosing', 'fAccess', 'fBidTime', 'fChanged', 'fPaper']) $(id).value = '';
+    for (const id of ['fDistrict', 'fDept', 'fValue', 'fClosing', 'fAccess', 'fBidTime', 'fChanged', 'fPaper', 'fHead']) $(id).value = '';
     $('fSort').value = 'new';
     apply();
   }
@@ -2726,7 +2730,7 @@
       S.q = e.target.value; apply({ keepScroll: true });
     }, 140);
   });
-  for (const id of ['fDistrict', 'fDept', 'fValue', 'fAccess', 'fBidTime', 'fChanged', 'fPaper', 'fSort']) $(id).addEventListener('change', () => apply({ keepScroll: true }));
+  for (const id of ['fDistrict', 'fDept', 'fValue', 'fAccess', 'fBidTime', 'fChanged', 'fPaper', 'fHead', 'fSort']) $(id).addEventListener('change', () => apply({ keepScroll: true }));
   $('fClosing').addEventListener('change', () => { S.soon = 0; apply({ keepScroll: true }); });
   $('scBanner').addEventListener('click', () => { $('fAccess').value = MY_CAT; $('fSort').value = 'closing'; apply(); });
   document.querySelectorAll('.stat[data-cat]').forEach((el) => el.addEventListener('click', () => {

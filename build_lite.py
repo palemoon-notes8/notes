@@ -99,6 +99,36 @@ CATS = [
 HINT = re.compile(r'reserv|categor|catagor|caste|tribe|belong|only|certificate', re.I)
 
 
+# ---------- Funding head (Head of Account / scheme) written in the tender text ----------
+# First match wins, so the most telling heads come first. Tone from how contractors bid on each head in
+# the whole history: "good" = many bidders and deep discounts (money trusted), "watch" = avoided.
+FUNDING_HEADS = [
+    ("SCSP/TSP", "good", r"\bSCSP\b|\bS\.C\.S\.P\b|\bTSP\b|\bSCP\b|SC\s*sub\s*plan|special\s+component\s+plan|tribal\s+sub\s*plan|SC\s*/\s*ST\s+sub"),
+    ("15th Finance Commission", "good", r"15\s*(th)?\s*(F\.?C\b|finance)|XV\s*(th)?\s*F\.?C|fifteenth\s+finance"),
+    ("KKRDB", "good", r"KKRDB|K\.K\.R\.D\.B|kalyana\s+karnataka|\bHKRDB"),
+    ("NABARD/RIDF", "", r"NABARD|\bRIDF"),
+    ("Smart City/AMRUT", "watch", r"smart\s+city|\bAMRUT|nagarot+hana"),
+    ("MLA/MP fund", "", r"\bMLALAD|\bMPLAD|\bMP\s*LAD|\bMLA\b|\bM\.L\.A\b"),
+    ("PMGSY/CMGSY", "", r"PMGSY|CMGSY|pradhan\s+mantri\s+gram\s+sadak|mukhya\s+mantri\s+gram"),
+    ("Jal Jeevan", "", r"\bJJM\b|jal\s+jeevan"),
+    ("Flood relief", "", r"\bNDRF|\bSDRF|flood\s+(relief|damage)|natural\s+calamit|disaster"),
+    ("Capital roads 5054", "", r"\b5054\b"),
+    ("Buildings", "good", r"\b4059\b|\b4202\b|\b4250\b|\b4235\b"),
+    ("Rural dev 4515", "", r"\b4515\b"),
+    ("Maintenance", "", r"\b2059\b|\b3054\b"),
+]
+FUNDING_RX = [(name, tone, re.compile(rx, re.I)) for name, tone, rx in FUNDING_HEADS]
+
+
+def funding_head(*texts):
+    """[name, tone] of the funding head a tender names in its text, or None."""
+    text = " ".join(t or "" for t in texts)
+    for name, tone, rx in FUNDING_RX:
+        if rx.search(text):
+            return [name, tone]
+    return None
+
+
 def list_reservation(title, description):
     """SC / ST / Cat-1 / Cat-2A / Cat-2B from a reserved tender's title and description, when they say so."""
     votes = collections.Counter()
@@ -146,6 +176,9 @@ def slim(tender):
         record["corr"] = 1
     if raw.get("canViewAddendum"):
         record["addm"] = 1
+    head = funding_head(title, description)
+    if head:
+        record["head"] = head
     if record["access"] == "Reserved":
         record["resvGuess"] = list_reservation(title, description)
     return {k: v for k, v in record.items() if v not in (None, "")}

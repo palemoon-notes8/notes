@@ -26,7 +26,7 @@ import requests
 
 from kppp_polite import make_session as polite_session
 
-from build_lite import CATS, GEN, HINT
+from build_lite import CATS, GEN, HINT, funding_head
 from collect_results import item_key
 
 STORE = Path(sys.argv[1] if len(sys.argv) > 1 else "store") / "details"
@@ -176,7 +176,9 @@ def write_paperwork():
         docs = [d.get("documentName") or "" for d in full.get("tenderCriterionDocumentList") or [] if isinstance(d, dict)]
         tech = [d.get("description") or "" for d in full.get("technicalCriterionList") or [] if isinstance(d, dict)]
         elig = [d.get("description") or "" for d in full.get("generalCriterionList") or [] if isinstance(d, dict)]
-        out[file.stem] = [len(docs) + len(tech), sum(1 for text in docs + tech + elig if HEAVY.search(text))]
+        sched = full.get("tenderSchedule") or {}
+        head = funding_head(sched.get("title"), sched.get("description"), " ".join(elig), " ".join(docs))
+        out[file.stem] = [len(docs) + len(tech), sum(1 for text in docs + tech + elig if HEAVY.search(text))] + ([head] if head else [])
     (STORE / "paperwork.json").write_text(json.dumps({"generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                                                       "tenders": out}, separators=(",", ":")), encoding="utf-8")
     return len(out)
