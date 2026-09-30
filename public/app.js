@@ -1460,6 +1460,10 @@
   // Boundaries: karnataka-map.json (2011 districts, simplified). Vijayanagara (formed 2021) is counted with Ballari.
   let kaShape = null, kaMetric = 'live', kaHist = null, kaPinned = null;
   const KA_MERGE = { Vijayanagara: 'Ballari' };
+  // Short names for the map labels; small neighbours get a nudge so labels don't sit on each other.
+  const KA_SHORT = { 'Bengaluru Urban': 'B. Urban', 'Bengaluru Rural': 'B. Rural', 'Dakshina Kannada': 'D. Kannada', 'Uttara Kannada': 'U. Kannada',
+    Chikkamagaluru: 'Chikkamagaluru', Chamarajanagar: "Ch'nagar", Chikkaballapur: "C'ballapur", Ramanagara: 'Ramanagara' };
+  const KA_NUDGE = { 'Bengaluru Urban': [10, 6], 'Bengaluru Rural': [-4, -14], Ramanagara: [4, 20], Kolar: [8, 6], Udupi: [-4, 0], Kodagu: [0, 4], Gadag: [0, -4], Chamarajanagar: [-4, 0], Mandya: [-16, -4] };
   const KA_METRICS = {
     live: { label: 'Live tenders', fmt: (v) => fmtInt(v) },
     value: { label: 'Value of live tenders', fmt: (v) => money(v) || '₹0' },
@@ -1510,6 +1514,10 @@
       ${Object.entries(kaShape.districts).map(([d, s]) => {
         const v = st[d]?.[kaMetric];
         return `<path d="${s.d}" class="ka-d ka-c${cls(v)}" data-kad="${esc(d)}" tabindex="0" role="button" aria-label="${esc(d)}: ${v === null || v === undefined ? 'no data' : esc(m.fmt(v))}"></path>`;
+      }).join('')}
+      ${Object.entries(kaShape.districts).map(([d, s]) => {
+        const [dx, dy] = KA_NUDGE[d] || [0, 0];
+        return `<text x="${s.cx + dx}" y="${s.cy + dy}" class="ka-l ka-t${cls(st[d]?.[kaMetric])}">${esc(KA_SHORT[d] || d)}</text>`;
       }).join('')}</svg>`;
     const ranked = Object.keys(kaShape.districts).map((d) => [d, st[d]?.[kaMetric]]).filter(([, v]) => v !== null && v !== undefined).sort((a, b) => b[1] - a[1]);
     const legend = [1, 2, 3, 4, 5].map((c, i) => {

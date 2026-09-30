@@ -712,3 +712,11 @@ dialog.wide{width:min(720px,calc(100% - 24px));max-height:calc(100vh - 40px)}
 .ka-tip-actions{display:flex;gap:6px;margin-top:8px}
 .ka-tip-actions .btn{height:34px;padding:0 10px;font-size:13px}
 .ka-d.sel{stroke:var(--ink);stroke-width:2.5}
+/* District labels: dark ink on the light steps, white on the dark steps (reversed in dark mode) */
+.ka-l{font-size:15px;font-weight:800;letter-spacing:-.01em;text-anchor:middle;dominant-baseline:middle;pointer-events:none;paint-order:stroke;stroke-width:3px;stroke-linejoin:round}
+.ka-t0,.ka-t1,.ka-t2{fill:#0e1330;stroke:rgba(255,255,255,.65)}
+.ka-t3,.ka-t4,.ka-t5{fill:#fff;stroke:rgba(14,19,48,.45)}
+:root[data-theme="dark"] .ka-t0,:root[data-theme="dark"] .ka-t1,:root[data-theme="dark"] .ka-t2,:root[data-theme="dark"] .ka-t3{fill:#fff;stroke:rgba(10,14,29,.6)}
+:root[data-theme="dark"] .ka-t4,:root[data-theme="dark"] .ka-t5{fill:#0a0e1d;stroke:rgba(255,255,255,.5)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ka-t0,:root:not([data-theme="light"]) .ka-t1,:root:not([data-theme="light"]) .ka-t2,:root:not([data-theme="light"]) .ka-t3{fill:#fff;stroke:rgba(10,14,29,.6)}
+:root:not([data-theme="light"]) .ka-t4,:root:not([data-theme="light"]) .ka-t5{fill:#0a0e1d;stroke:rgba(255,255,255,.5)}}
