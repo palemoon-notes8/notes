@@ -720,3 +720,18 @@ dialog.wide{width:min(720px,calc(100% - 24px));max-height:calc(100vh - 40px)}
 :root[data-theme="dark"] .ka-t4,:root[data-theme="dark"] .ka-t5{fill:#0a0e1d;stroke:rgba(255,255,255,.5)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ka-t0,:root:not([data-theme="light"]) .ka-t1,:root:not([data-theme="light"]) .ka-t2,:root:not([data-theme="light"]) .ka-t3{fill:#fff;stroke:rgba(10,14,29,.6)}
 :root:not([data-theme="light"]) .ka-t4,:root:not([data-theme="light"]) .ka-t5{fill:#0a0e1d;stroke:rgba(255,255,255,.5)}}
+
+.quote h3{margin-top:0}
+.quote-main{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:12px;background:var(--brand-soft);margin:6px 0 10px}
+.quote-main span{font-size:12.5px;font-weight:700;color:var(--muted)}
+.quote-main strong{font-size:22px;line-height:1.2;color:var(--ink)}
+.quote-main b{font-size:18px;color:var(--brand)}
+.quote-why{margin:0 0 10px;font-size:13.5px;color:var(--ink-2)}
+.quote-safe{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;border-radius:12px;font-size:13.5px;margin-bottom:10px}
+.quote-safe.ok{background:var(--ok-soft);color:var(--ink)}
+.quote-safe.no{background:var(--warn-soft);color:var(--ink)}
+.more-details{margin:0 0 14px}
+.more-details>summary{cursor:pointer;font-weight:700;color:var(--brand);padding:10px 2px;list-style:none}
+.more-details>summary::-webkit-details-marker{display:none}
+.more-details>summary::before{content:'▸ ';}
+.more-details[open]>summary::before{content:'▾ ';}

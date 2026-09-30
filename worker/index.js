@@ -565,7 +565,7 @@ async function handleLogin(request) {
 
 // Your own lists (saved tenders and results, notes, watched contractors, profile), kept in your
 // Cloudflare account so every phone and computer you sign in on shows the same ones.
-const PREF_KEYS = new Set(['kppp_saved_tenders', 'tenderone_saved_results', 'tenderone_notes', 'tenderone_watch', 'tenderone_profile', 'tenderone_prep']);
+const PREF_KEYS = new Set(['kppp_saved_tenders', 'tenderone_saved_results', 'tenderone_notes', 'tenderone_watch', 'tenderone_profile', 'tenderone_prep', 'tenderone_costs']);
 export class Prefs extends DurableObject {
   async read() {
     return (await this.ctx.storage.get('prefs')) || {};

@@ -13,6 +13,7 @@
   const WATCH_KEY = 'tenderone_watch';
   const COMPARE_KEY = 'tenderone_compare';
   const PREP_KEY = 'tenderone_prep';
+  const COSTS_KEY = 'tenderone_costs'; // your bid calculator settings per category, remembered for every tender
   const PAGE = 30;
   const DAY = 86400000;
 
@@ -83,7 +84,7 @@
     try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
   }
   // ---------- Your lists, the same on every device (/api/prefs) ----------
-  const SYNC_KEYS = [SAVED_KEY, RSAVED_KEY, NOTES_KEY, WATCH_KEY, PROFILE_KEY, PREP_KEY];
+  const SYNC_KEYS = [SAVED_KEY, RSAVED_KEY, NOTES_KEY, WATCH_KEY, PROFILE_KEY, PREP_KEY, COSTS_KEY];
   const SYNC_META = 'tenderone_sync_meta'; // when each list last changed on this device
   let syncPending = {}, syncTimer = null;
   function stamp(key, t) {
@@ -113,7 +114,7 @@
   }
   // First sync of a device that already had lists: keep both sides.
   function mergeLists(key, local, server) {
-    if (key === NOTES_KEY || key === PREP_KEY) return { ...(server || {}), ...(local || {}) };
+    if (key === NOTES_KEY || key === PREP_KEY || key === COSTS_KEY) return { ...(server || {}), ...(local || {}) };
     if (key === PROFILE_KEY) return server ?? local;
     if (key === WATCH_KEY) {
       const out = [...(server || [])];
@@ -580,8 +581,6 @@
           </dl></section>
           <section class="panel ai-sum" id="tpAi"><h3>✨ In short</h3><p class="muted-p">A plain-language summary of this tender's conditions, made by AI.</p><button class="btn" type="button" id="aiGo">✨ Summarise this tender</button></section>
           <section class="panel quick-note" id="tpQuick" hidden></section>
-          <section class="panel rivals" id="tpRivals" hidden></section>
-          <section class="panel office-past" id="tpOffice" hidden></section>
           <section class="panel" id="tpContact" hidden></section>
           ${notePanel('t:' + t.id)}
           <div class="actions col">
@@ -589,7 +588,13 @@
           </div>
         </aside>
         <main class="tp-main">
-          <section class="panel bid-guide" id="tpBid" hidden></section>
+          <section class="panel quote" id="tpQuote" hidden></section>
+          <details class="more-details" id="tpMore">
+            <summary>More details — bid range, likely competitors, this office's past works</summary>
+            <section class="panel bid-guide" id="tpBid" hidden></section>
+            <section class="panel office-past" id="tpOffice" hidden></section>
+            <section class="panel rivals" id="tpRivals" hidden></section>
+          </details>
           <div id="tpFull">${loadingBlock()}</div>
         </main>
       </div>
@@ -607,7 +612,7 @@
     d.querySelector('[data-close]').focus();
     bindCalculator(t);
     bindNote(d);
-    G = { t, f: null, sim: null, ratio: null, cover: 0, past: new Map(), rec: null, recalc: null };
+    G = { t, f: null, sim: null, ratio: null, cover: 0, past: new Map(), rec: null, recalc: null, simQ: null };
     loadFull(t);
     renderSimilar(t);
     renderQuickNote(t);
@@ -800,6 +805,41 @@
   const quart = (a, q) => (a.length ? a[Math.min(a.length - 1, Math.max(0, Math.round(q * (a.length - 1))))] : null);
   const boqEstimate = (f) => (f?.groups || []).reduce((n, g) => n + g.items.reduce((m, i) => m + (num(i.amount) || (num(i.rate) && num(i.qty) ? i.rate * i.qty : 0)), 0), 0);
 
+  // ---------- What to quote: one target (% and ₹) and whether it is safe for your costs ----------
+  function renderQuote() {
+    const { t, f } = G;
+    const box = $('tpQuote');
+    if (!t || !box || t.cat !== 'WORKS') { if (box) box.hidden = true; return; }
+    const base = num(t.value) || boqEstimate(f) || null;
+    const office = officePcts.get(prepKey(t)) || [];
+    let pct = null, why = '';
+    if (office.length >= 5) {
+      pct = median(office);
+      why = `Winners of <b>${fmtInt(office.length)}</b> similar works at <b>${esc(t.office)}</b> usually bid this.`;
+    } else if (G.simQ) {
+      pct = G.simQ.mid;
+      why = `Winners of <b>${fmtInt(G.simQ.n)}</b> similar tenders (${esc(G.simQ.scope)}) usually bid this.`;
+    }
+    if (pct === null || !base) { box.hidden = true; return; }
+    const amount = base * (1 + pct / 100);
+    const words = pct <= 0 ? `${Math.abs(pct).toFixed(1)}% below` : `${pct.toFixed(1)}% above`;
+    // Your cost as % of the tender value, from the bid calculator (direct + overhead + risk).
+    const cost = ['cDirect', 'cOverhead', 'cContingency'].reduce((n, id) => n + (Number($(id)?.value) || 0), 0);
+    const maxDisc = 100 - cost;
+    const safe = -pct <= maxDisc;
+    const mine = Boolean(readJSON(COSTS_KEY, {})[t.cat]?.set);
+    const whose = mine ? 'your cost settings' : 'typical costs (set yours in the bid calculator)';
+    box.hidden = false;
+    box.innerHTML = `<h3>What to quote</h3>
+      <div class="quote-main"><span>Quote around</span><strong>${esc(words)} the tender value</strong><b>≈ ${money(amount, { full: true })}</b></div>
+      <p class="quote-why">${why} The tender value is ${money(base, { full: true })}; every % on this page is measured against it.</p>
+      <div class="quote-safe ${safe ? 'ok' : 'no'}">${safe
+        ? `✅ <span><b>Safe for your costs.</b> With ${whose} you can go down to <b>${maxDisc.toFixed(1)}% below</b> without a loss.</span>`
+        : `⚠ <span><b>Below your cost.</b> With ${whose} you can go at most <b>${Math.max(0, maxDisc).toFixed(1)}% below</b>. Bid only if your real costs are lower — otherwise skip this one.</span>`}</div>
+      <button class="btn ghost" type="button" id="quoteCosts">Adjust my costs ↓</button>`;
+    $('quoteCosts').addEventListener('click', () => $('cDirect')?.closest('section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }
+
   function updateBidGuide() {
     const { t, f, sim, ratio, cover } = G;
     const box = $('tpBid');
@@ -815,6 +855,8 @@
     // Real winning totals of similar tenders come first; item rates are the fallback.
     const rec = simBid || itemBid;
     G.rec = rec;
+    G.simQ = useSim ? { mid: simQ[1], n: simN, scope: useSim.scope } : null;
+    renderQuote();
     const low = useSim ? base * (1 + simQ[0] / 100) : rec * 0.97;
     // Same "win more often" level item by item: % against the department's rates.
     G.lowPct = (low / base - 1) * 100;
@@ -1062,7 +1104,7 @@
   };
 
   function calculatorHtml(t) {
-    const p = PROFILES[t.cat] || PROFILES.WORKS;
+    const p = { ...(PROFILES[t.cat] || PROFILES.WORKS), ...(readJSON(COSTS_KEY, {})[t.cat] || {}) };
     const slider = (id, label, value, max) => `<div class="field"><label for="${id}">${label}<output id="${id}Out">${value}%</output></label><input id="${id}" type="range" min="0" max="${max}" step="0.5" value="${value}"></div>`;
     return `<section class="panel">
       <h3>Bid calculator</h3>
@@ -1080,7 +1122,18 @@
 
   function bindCalculator(t) {
     const ids = ['cValue', 'cDirect', 'cOverhead', 'cContingency', 'cMargin'];
-    const run = () => {
+    let costTimer;
+    const run = (e) => {
+      if (e?.target && ['cDirect', 'cOverhead', 'cContingency', 'cMargin'].includes(e.target.id)) {
+        clearTimeout(costTimer);
+        costTimer = setTimeout(() => {
+          const all = readJSON(COSTS_KEY, {});
+          all[t.cat] = { direct: Number($('cDirect').value), overhead: Number($('cOverhead').value), contingency: Number($('cContingency').value), margin: Number($('cMargin').value), set: true };
+          writeJSON(COSTS_KEY, all);
+          if (G.t === t) renderQuote();
+        }, 500);
+      }
+      if (G.t === t) renderQuote();
       const v = Number($('cValue').value) || 0;
       const [direct, overhead, contingency, margin] = ids.slice(1).map((id) => {
         const n = Number($(id).value) || 0;
@@ -1631,6 +1684,7 @@
     const pcts = list.map((w) => w[6]?.[0]?.[1]).filter((p) => p !== null && p !== undefined && p > -80 && p < 80);
     officePcts.set(prepKey(t), pcts);
     updatePrepChance();
+    renderQuote();
     const med = median(pcts);
     const bidders = list.reduce((n, w) => n + (w[5] || 0), 0) / list.length;
     const close = med === null ? 0 : pcts.filter((p) => Math.abs(p - med) <= 0.5).length;
