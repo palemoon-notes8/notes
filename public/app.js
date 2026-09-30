@@ -1174,6 +1174,7 @@
 
   function setMode(mode) {
     R.mode = mode;
+    try { sessionStorage.setItem('tenderone_mode', mode); } catch {}
     document.querySelectorAll('[data-mode]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.mode === mode)));
     document.querySelector(`[data-mode="${mode}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     $('liveView').hidden = mode !== 'live';
@@ -2034,7 +2035,7 @@
     d.scrollTop = 0;
     d.querySelector('[data-close]').focus();
     bindNote(d);
-    const hash = '#a=' + encodeURIComponent(r.nit);
+    const hash = '#a=' + encodeURIComponent(r.nit) + (extra?.month ? `~${encodeURIComponent(extra.month)}` : '');
     if (location.hash !== hash) history.pushState({ award: r.nit }, '', hash);
 
     loadPastTender(r);
@@ -2264,7 +2265,7 @@
     const r = { nit: String(nit), ref: base.ref, title: base.title || base.ref || 'Tender', district: base.district, dept: base.dept, office: base.office,
       value: base.value, closed: base.closed, winner: bidders[0]?.name || base.winner, bidders, cat: 'WORKS', _award: Date.parse(base.closed) || 0 };
     const a = { bidders, items: j.items.map(([code, name, unit, qty, est, rates]) => ({ code, name, unit, qty, est, rates })) };
-    openAward(nit, { r, a });
+    openAward(nit, { r, a, month });
   }
 
   let cpRows = [];
@@ -3023,10 +3024,10 @@
   window.addEventListener('popstate', () => {
     const m = location.hash.match(/^#t=(.+)$/);
     const c = location.hash.match(/^#c=(.+)$/);
-    const a = location.hash.match(/^#a=(\d+)$/);
+    const a = location.hash.match(/^#a=(\d+)(?:~([\w-]+))?$/);
     if (m && S.byId.has(decodeURIComponent(m[1]))) openTender(decodeURIComponent(m[1]));
     else if (c) openContractor(decodeURIComponent(c[1]));
-    else if (a) openAward(a[1]);
+    else if (a) { if (a[2]) openTenderBids(a[1], decodeURIComponent(a[2])); else openAward(a[1]); }
     else closeDrawer({ fromHistory: true });
   });
 
@@ -3037,14 +3038,19 @@
   new IntersectionObserver(([en]) => $('filters').classList.toggle('stuck', en.intersectionRatio < 1), { threshold: [1], rootMargin: '-1px 0px 0px 0px' }).observe($('filters'));
 
 
+  // After a refresh, come back to the tab you were on.
+  try {
+    const lastMode = sessionStorage.getItem('tenderone_mode');
+    if (lastMode && lastMode !== 'live' && document.querySelector(`[data-mode="${CSS.escape(lastMode)}"]`)) setMode(lastMode);
+  } catch {}
   const deepContractor = location.hash.match(/^#c=(.+)$/);
-  const deepAward = location.hash.match(/^#a=(\d+)$/);
+  const deepAward = location.hash.match(/^#a=(\d+)(?:~([\w-]+))?$/);
   if (deepContractor) {
     history.replaceState(null, '', location.pathname);
     openContractor(decodeURIComponent(deepContractor[1]));
   } else if (deepAward) {
     history.replaceState(null, '', location.pathname);
-    openAward(deepAward[1]);
+    if (deepAward[2]) openTenderBids(deepAward[1], decodeURIComponent(deepAward[2])); else openAward(deepAward[1]);
   }
   load().then(() => {
     updateCompareTray();
