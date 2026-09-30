@@ -184,6 +184,23 @@
   const resvLabel = (v) => (v === 'Reserved' ? 'Reserved – category not stated' : `${v.replace('Cat-1', 'Category I').replace('Cat-2A', 'Category II-A').replace('Cat-2B', 'Category II-B')} reserved`);
   // The full conditions (reserved.json) win; until they are read, the title/description guess (t.resvGuess) is used.
   function markReserved() { for (const t of S.all) t.resv = t.access === 'Reserved' ? (reserved.get(String(t.nit)) || t.resvGuess || 'Reserved') : null; }
+  // Paperwork per tender (details/paperwork.json from collect_details.py): [papers, heavy proofs].
+  // Light = no turnover / experience / machinery proofs and few papers (works need a registration certificate etc.).
+  let paperwork = new Map();
+  function markPaperwork() {
+    for (const t of S.all) {
+      const p = paperwork.get(String(t.nit));
+      t.papers = p ? p[0] : null;
+      t.light = Boolean(p && p[1] === 0 && p[0] <= (t.cat === 'WORKS' ? 6 : 3));
+    }
+  }
+  function loadPaperwork() {
+    fetch('/paperwork.json').then((r) => (r.ok ? r.json() : null)).then((d) => {
+      if (!d?.tenders) return;
+      paperwork = new Map(Object.entries(d.tenders));
+      if (S.all?.length) { markPaperwork(); apply({ keepScroll: true }); }
+    }).catch(() => {});
+  }
   function loadReserved() {
     fetch('/reserved.json').then((r) => (r.ok ? r.json() : null)).then((d) => {
       if (!d?.tenders) return;
@@ -199,6 +216,7 @@
     S.all = (payload.tenders || []).map(prepare).filter((t) => !t._close || t._close > now);
     S.byId = new Map(S.all.map((t) => [t.id, t]));
     markReserved();
+    markPaperwork();
     buildFilterOptions();
     updateCounts();
     updateLive();
@@ -221,6 +239,7 @@
 
   async function load() {
     loadReserved();
+    loadPaperwork();
     // Show the last copy instantly on repeat visits, then swap in fresh data.
     const network = fetch(DATA_URL, { cache: 'no-cache' });
     network.catch(() => {}); // handled below; avoids an "unhandled" warning when offline
@@ -299,6 +318,7 @@
       access: $('fAccess').value,
       bidTime: Number($('fBidTime').value) || 0,
       changed: $('fChanged').value,
+      paper: $('fPaper').value,
       sort: $('fSort').value
     };
   }
@@ -329,6 +349,7 @@
       if (closeBy && !(t._close && t._close <= closeBy)) continue;
       if (f.bidTime && !(bidDays(t._pub, t._close) < f.bidTime)) continue;
       if (f.changed && !(f.changed === 'any' ? (t.corr || t.addm) : t[f.changed])) continue;
+      if (f.paper === 'light' && !t.light) continue;
       if (terms.length && !terms.every((w) => t._hay.includes(w))) continue;
       out.push(t);
     }
@@ -362,13 +383,14 @@
     if (f.access) chips.push(['fAccess', $('fAccess').selectedOptions[0].text]);
     if (f.bidTime) chips.push(['fBidTime', $('fBidTime').selectedOptions[0].text]);
     if (f.changed) chips.push(['fChanged', $('fChanged').selectedOptions[0].text]);
+    if (f.paper) chips.push(['fPaper', $('fPaper').selectedOptions[0].text]);
     if (S.savedOnly) chips.push(['saved', 'Saved only']);
     if (S.forMe) chips.push(['forMe', 'For me']);
     $('chips').innerHTML = chips.map(([k, label]) => `<button type="button" class="chip" data-clear="${k}">${esc(label)}<b aria-hidden="true">×</b></button>`).join('');
   }
 
   function syncControls(f) {
-    for (const id of ['fDistrict', 'fDept', 'fValue', 'fClosing', 'fAccess', 'fBidTime', 'fChanged']) $(id).classList.toggle('set', Boolean($(id).value));
+    for (const id of ['fDistrict', 'fDept', 'fValue', 'fClosing', 'fAccess', 'fBidTime', 'fChanged', 'fPaper']) $(id).classList.toggle('set', Boolean($(id).value));
     document.querySelectorAll('.stat[data-cat]').forEach((el) => el.classList.toggle('active', el.dataset.cat === S.cat && !f.closing));
     document.querySelector('.stat.soon').classList.toggle('active', S.soon === 7 && !$('fClosing').value);
     $('savedBtn').classList.toggle('on', S.savedOnly);
@@ -443,7 +465,7 @@
     return `<article class="card" data-id="${esc(t.id)}" tabindex="0" aria-label="${esc(t.title)}">
       <div class="card-top">
         <span class="badge ${esc(t.cat)}">${esc(t.cat)}</span>
-        ${t.access && t.access !== 'Open' ? `<span class="badge reserved${resvHas(t, MY_CAT) ? ' mine' : ''}">${esc(t.resv ? resvLabel(t.resv) : t.access)}</span>` : ''}${changedBadge(t)}${prepBadge(t)}
+        ${t.access && t.access !== 'Open' ? `<span class="badge reserved${resvHas(t, MY_CAT) ? ' mine' : ''}">${esc(t.resv ? resvLabel(t.resv) : t.access)}</span>` : ''}${changedBadge(t)}${t.light ? `<span class="badge light" title="${esc(t.papers)} papers to submit, no turnover / experience / machinery proofs">📄 Light paperwork</span>` : ''}${prepBadge(t)}
         ${t.work ? `<span class="badge soft">${esc(t.work)}</span>` : ''}
         ${quickBadge(bidDays(t._pub, t._close))}
         ${left ? `<span class="due ${left.tone}">${esc(left.label)}</span>` : ''}
@@ -2689,7 +2711,7 @@
   function reset() {
     S.cat = 'ALL'; S.soon = 0; S.savedOnly = false; S.forMe = false; S.q = '';
     $('q').value = '';
-    for (const id of ['fDistrict', 'fDept', 'fValue', 'fClosing', 'fAccess', 'fBidTime', 'fChanged']) $(id).value = '';
+    for (const id of ['fDistrict', 'fDept', 'fValue', 'fClosing', 'fAccess', 'fBidTime', 'fChanged', 'fPaper']) $(id).value = '';
     $('fSort').value = 'new';
     apply();
   }
@@ -2704,7 +2726,7 @@
       S.q = e.target.value; apply({ keepScroll: true });
     }, 140);
   });
-  for (const id of ['fDistrict', 'fDept', 'fValue', 'fAccess', 'fBidTime', 'fChanged', 'fSort']) $(id).addEventListener('change', () => apply({ keepScroll: true }));
+  for (const id of ['fDistrict', 'fDept', 'fValue', 'fAccess', 'fBidTime', 'fChanged', 'fPaper', 'fSort']) $(id).addEventListener('change', () => apply({ keepScroll: true }));
   $('fClosing').addEventListener('change', () => { S.soon = 0; apply({ keepScroll: true }); });
   $('scBanner').addEventListener('click', () => { $('fAccess').value = MY_CAT; $('fSort').value = 'closing'; apply(); });
   document.querySelectorAll('.stat[data-cat]').forEach((el) => el.addEventListener('click', () => {

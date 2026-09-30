@@ -696,6 +696,7 @@ export default {
     if (url.pathname === '/competitors.json') return historyFile('competitors.json', ctx, 1800);
     if (url.pathname === '/api/office') return officeWorks(url.searchParams.get('name'), ctx);
     if (url.pathname === '/reserved.json') return historyFile('details/reserved.json', ctx, 600, false, 'data');
+    if (url.pathname === '/paperwork.json') return historyFile('details/paperwork.json', ctx, 600, false, 'data');
     const bids = url.pathname.match(/^\/api\/tender-bids\/(\d+)$/);
     if (bids) return tenderBids(bids[1], url.searchParams.get('m'), ctx);
     const itemwise = url.pathname.match(/^\/downloads\/(itemwise-\d{4}-\d{2}\.xlsx)$/);

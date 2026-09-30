@@ -673,3 +673,6 @@ dialog.wide{width:min(720px,calc(100% - 24px));max-height:calc(100vh - 40px)}
 .badge.prep-submitted{background:#dbeafe;color:#1e40af}
 .badge.prep-won{background:#dcfce7;color:#166534}
 .badge.prep-lost{background:#f1f5f9;color:#475569}
+.badge.light{background:#e6f6ec;color:#166534;border:1px solid #9ad5ae}
+:root[data-theme="dark"] .badge.light{background:#12301d;color:#8fe0a8;border-color:#285c3a}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .badge.light{background:#12301d;color:#8fe0a8;border-color:#285c3a}}

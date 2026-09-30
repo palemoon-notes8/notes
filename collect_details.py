@@ -159,6 +159,29 @@ def write_reserved():
     return len(known)
 
 
+# Proofs that take real effort to gather (turnover, audited accounts, experience, machinery, staff).
+HEAVY = re.compile(r"turnover|solvency|audited|profit and loss|balance sheet|similar (nature|work)|experience|machiner|"
+                   r"equipment|key (technical|personnel)|work done certificate|completion certificate", re.I)
+
+
+def write_paperwork():
+    """details/paperwork.json: {nit: [papers asked for, heavy proofs among them]} for every stored live tender,
+    so the site can mark tenders that need little paperwork."""
+    out = {}
+    for file in STORE.glob("*/*.json"):
+        try:
+            full = json.loads(file.read_text(encoding="utf-8")).get("full") or {}
+        except Exception:
+            continue
+        docs = [d.get("documentName") or "" for d in full.get("tenderCriterionDocumentList") or [] if isinstance(d, dict)]
+        tech = [d.get("description") or "" for d in full.get("technicalCriterionList") or [] if isinstance(d, dict)]
+        elig = [d.get("description") or "" for d in full.get("generalCriterionList") or [] if isinstance(d, dict)]
+        out[file.stem] = [len(docs) + len(tech), sum(1 for text in docs + tech + elig if HEAVY.search(text))]
+    (STORE / "paperwork.json").write_text(json.dumps({"generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                                                      "tenders": out}, separators=(",", ":")), encoding="utf-8")
+    return len(out)
+
+
 def load_json_file(path):
     try:
         return json.loads(path.read_text(encoding="utf-8"))
@@ -273,6 +296,7 @@ def main():
     if rates:
         print(f"Past item rates added or updated for {add_past_rates(rates)} works tenders ({len(rates)} items known)", flush=True)
     print(f"Reserved tenders on record: {write_reserved()}", flush=True)
+    print(f"Paperwork scores: {write_paperwork()}", flush=True)
     stored = sum(1 for _ in STORE.glob("*/*.json"))
     print(f"Saved {ok}, failed {failed}, {changed} with new changes. {stored} of {len(wanted)} live tenders stored "
           f"({int(time.monotonic() - started)}s).")
