@@ -814,8 +814,25 @@
     const office = officePcts.get(prepKey(t)) || [];
     let pct = null, why = '';
     if (office.length >= 5) {
-      pct = median(office);
-      why = `Winners of <b>${fmtInt(office.length)}</b> similar works at <b>${esc(t.office)}</b> usually bid this.`;
+      // Where most winners bid: the 1%-wide band holding the most winning bids (ties → the band nearer the median).
+      const sorted = office.slice().sort((x, y) => x - y);
+      const mid = median(sorted);
+      let best = null;
+      for (let i = 0; i < sorted.length; i++) {
+        let j = i;
+        while (j + 1 < sorted.length && sorted[j + 1] - sorted[i] <= 1) j++;
+        const n = j - i + 1, centre = (sorted[i] + sorted[j]) / 2;
+        if (!best || n > best.n || (n === best.n && Math.abs(centre - mid) < Math.abs(best.centre - mid))) best = { n, lo: sorted[i], hi: sorted[j], centre };
+      }
+      const strong = best.n >= 3 && best.n >= office.length / 4;
+      pct = strong ? best.centre : mid;
+      const side = (v) => (v <= 0 ? 'below' : 'above');
+      const range = side(best.lo) === side(best.hi)
+        ? `${Math.min(Math.abs(best.lo), Math.abs(best.hi)).toFixed(1)}–${Math.max(Math.abs(best.lo), Math.abs(best.hi)).toFixed(1)}% ${side(best.lo)}`
+        : `${Math.abs(best.lo).toFixed(1)}% below to ${best.hi.toFixed(1)}% above`;
+      why = strong
+        ? `<b>${fmtInt(best.n)} of ${fmtInt(office.length)}</b> winners of similar works at <b>${esc(t.office)}</b> bid <b>${esc(range)}</b> — the most common winning range.`
+        : `Winners of <b>${fmtInt(office.length)}</b> similar works at <b>${esc(t.office)}</b> usually bid this (no single range stands out).`;
     } else if (G.simQ) {
       pct = G.simQ.mid;
       why = `Winners of <b>${fmtInt(G.simQ.n)}</b> similar tenders (${esc(G.simQ.scope)}) usually bid this.`;
