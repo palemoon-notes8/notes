@@ -708,3 +708,7 @@ dialog.wide{width:min(720px,calc(100% - 24px));max-height:calc(100vh - 40px)}
 .ka-tip span{display:flex;justify-content:space-between;gap:12px;color:var(--ink-2)}
 .ka-tip em{font-style:normal;font-weight:700;color:var(--ink)}
 @media (max-width:760px){.ka-body{grid-template-columns:1fr}.ka-svgwrap svg{max-height:520px}}
+.ka-tip.pinned{pointer-events:auto;box-shadow:var(--shadow-lg)}
+.ka-tip-actions{display:flex;gap:6px;margin-top:8px}
+.ka-tip-actions .btn{height:34px;padding:0 10px;font-size:13px}
+.ka-d.sel{stroke:var(--ink);stroke-width:2.5}

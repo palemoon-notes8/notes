@@ -1458,7 +1458,7 @@
 
   // ---------- Karnataka map (Charts tab): districts coloured by the chosen figure ----------
   // Boundaries: karnataka-map.json (2011 districts, simplified). Vijayanagara (formed 2021) is counted with Ballari.
-  let kaShape = null, kaMetric = 'live', kaHist = null;
+  let kaShape = null, kaMetric = 'live', kaHist = null, kaPinned = null;
   const KA_MERGE = { Vijayanagara: 'Ballari' };
   const KA_METRICS = {
     live: { label: 'Live tenders', fmt: (v) => fmtInt(v) },
@@ -1519,10 +1519,30 @@
     $('kaSide').innerHTML = `<p class="ka-title">${esc(m.label)}</p><div class="ka-legend">${legend}<span><i class="ka-c0"></i>None / not enough data</span></div>
       <ol class="ka-rank">${ranked.slice(0, 31).map(([d, v], i) => `<li${i >= 10 ? ' class="more" hidden' : ''}><button type="button" class="linkish" data-kad="${esc(d)}">${esc(d === 'Ballari' ? 'Ballari + Vijayanagara' : d)}</button><b>${esc(m.fmt(v))}</b></li>`).join('')}</ol>
       ${ranked.length > 10 ? '<button type="button" class="btn ghost" id="kaMore">Show all districts</button>' : ''}
-      <p class="note">Tap a district to see its live tenders. Vijayanagara is counted with Ballari (the map shows 2011 district borders).</p>`;
+      <p class="note">Tap a district for its figures, then “Open live tenders”. Vijayanagara is counted with Ballari (the map shows 2011 district borders).</p>`;
+    if (kaPinned) $('kaSvg').querySelector(`path[data-kad="${CSS.escape(kaPinned)}"]`)?.classList.add('sel');
     $('kaMore')?.addEventListener('click', (e) => { $('kaSide').querySelectorAll('.more').forEach((li) => { li.hidden = false; }); e.target.remove(); });
   }
+  // Tap / click / Enter: show the district's card (pinned, with a button to open its tenders).
+  function kaPin(d, e) {
+    kaPinned = d;
+    $('kaSvg').querySelectorAll('path[data-kad]').forEach((p) => p.classList.toggle('sel', p.dataset.kad === d));
+    const p = $('kaSvg').querySelector(`path[data-kad="${CSS.escape(d)}"]`);
+    let pt = e && e.clientX ? e : null;
+    if (!pt || e.target.closest('.ka-rank')) {
+      const r = (p || $('kaSvg')).getBoundingClientRect();
+      pt = { clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
+      if (e?.target?.closest('.ka-rank')) p?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+    }
+    kaTip(pt, d, true);
+  }
+  function kaUnpin() {
+    kaPinned = null;
+    $('kaSvg').querySelectorAll('path.sel').forEach((p) => p.classList.remove('sel'));
+    $('kaTip').hidden = true;
+  }
   function kaOpen(d) {
+    kaUnpin();
     const want = d === 'Ballari' ? 'Ballari' : d;
     setMode('live');
     const sel = $('fDistrict');
@@ -1530,15 +1550,18 @@
     apply();
     window.scrollTo({ top: $('liveView').offsetTop - 10, behavior: 'smooth' });
   }
-  function kaTip(e, d) {
+  function kaTip(e, d, pin = false) {
     const tip = $('kaTip');
+    if (kaPinned && !pin) return; // a tapped district keeps its card until closed or another is tapped
     if (!d) { tip.hidden = true; return; }
     const g = kaStats()[d] || {};
     const line = (k) => (g[k] === null || g[k] === undefined ? '—' : KA_METRICS[k].fmt(g[k]));
     tip.innerHTML = `<b>${esc(d === 'Ballari' ? 'Ballari + Vijayanagara' : d)}</b>
       <span>Live tenders <em>${esc(line('live'))}</em></span><span>Value <em>${esc(line('value'))}</em></span>
       <span>SC reserved <em>${esc(line('sc'))}</em></span><span>Light paperwork <em>${esc(line('light'))}</em></span>
-      <span>Winning bid <em>${esc(line('disc'))}</em></span><span>Bidders <em>${esc(line('bidders'))}</em></span>`;
+      <span>Winning bid <em>${esc(line('disc'))}</em></span><span>Bidders <em>${esc(line('bidders'))}</em></span>
+      ${pin ? `<div class="ka-tip-actions"><button type="button" class="btn primary" data-kaopen="${esc(d)}">Open live tenders →</button><button type="button" class="btn ghost" data-kaclose>Close</button></div>` : ''}`;
+    tip.classList.toggle('pinned', pin);
     tip.hidden = false;
     const box = $('kaMap').getBoundingClientRect();
     const x = Math.min(e.clientX - box.left + 14, box.width - tip.offsetWidth - 8);
@@ -2871,12 +2894,20 @@
       renderMap();
       return;
     }
+    const open = e.target.closest('[data-kaopen]');
+    if (open) { kaOpen(open.dataset.kaopen); return; }
+    if (e.target.closest('[data-kaclose]')) { kaUnpin(); return; }
     const d = e.target.closest('[data-kad]');
-    if (d) kaOpen(d.dataset.kad);
+    if (d) kaPin(d.dataset.kad, e);
+    else if (!e.target.closest('#kaTip')) kaUnpin();
   });
-  $('kaMap').addEventListener('keydown', (e) => { const d = e.target.closest('path[data-kad]'); if (d && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); kaOpen(d.dataset.kad); } });
+  $('kaMap').addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { kaUnpin(); return; }
+    const d = e.target.closest('path[data-kad]');
+    if (d && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); kaPin(d.dataset.kad, null); }
+  });
   $('kaMap').addEventListener('pointermove', (e) => { const d = e.target.closest('path[data-kad]'); kaTip(e, d?.dataset.kad); });
-  $('kaMap').addEventListener('pointerleave', () => { $('kaTip').hidden = true; });
+  $('kaMap').addEventListener('pointerleave', () => { if (!kaPinned) $('kaTip').hidden = true; });
   $('cDistrict').addEventListener('change', () => { $('cDistrict').classList.toggle('set', Boolean($('cDistrict').value)); if (R.all) renderCharts(); renderQuickPanel(); });
   $('rExport').addEventListener('click', () => { if (R.filtered.length) exportResults(); else toast('No results to export'); });
   $('rSavedCount').textContent = R.saved.size;
