@@ -1,0 +1,333 @@
+{
+ "generated_at": "2026-10-02T22:25:50+00:00",
+ "tenders": 101602,
+ "with_bids": 101201,
+ "from": "2023-06-01",
+ "to": "2026-09-21",
+ "complete": false,
+ "contractors": 26740,
+ "itemwise": [
+  {
+   "month": "2023-06",
+   "bytes": 135184,
+   "file": "itemwise-2023-06.xlsx",
+   "rows": 912,
+   "tenders": 33
+  },
+  {
+   "month": "2023-07",
+   "bytes": 428436,
+   "file": "itemwise-2023-07.xlsx",
+   "rows": 2991,
+   "tenders": 117
+  },
+  {
+   "month": "2023-08",
+   "bytes": 2852151,
+   "file": "itemwise-2023-08.xlsx",
+   "rows": 21978,
+   "tenders": 729
+  },
+  {
+   "month": "2023-09",
+   "bytes": 7971110,
+   "file": "itemwise-2023-09.xlsx",
+   "rows": 62720,
+   "tenders": 1127
+  },
+  {
+   "month": "2023-10",
+   "bytes": 6968908,
+   "file": "itemwise-2023-10.xlsx",
+   "rows": 53671,
+   "tenders": 973
+  },
+  {
+   "month": "2023-11",
+   "bytes": 8229602,
+   "file": "itemwise-2023-11.xlsx",
+   "rows": 63455,
+   "tenders": 1045
+  },
+  {
+   "month": "2023-12",
+   "bytes": 9624704,
+   "file": "itemwise-2023-12.xlsx",
+   "rows": 71341,
+   "tenders": 1423
+  },
+  {
+   "month": "2024-01",
+   "bytes": 9729942,
+   "file": "itemwise-2024-01.xlsx",
+   "rows": 70137,
+   "tenders": 1707
+  },
+  {
+   "month": "2024-02",
+   "bytes": 13657653,
+   "file": "itemwise-2024-02.xlsx",
+   "rows": 94392,
+   "tenders": 2461
+  },
+  {
+   "month": "2024-03",
+   "bytes": 12193328,
+   "file": "itemwise-2024-03.xlsx",
+   "rows": 88932,
+   "tenders": 2418
+  },
+  {
+   "month": "2024-04",
+   "bytes": 2975529,
+   "file": "itemwise-2024-04.xlsx",
+   "rows": 21158,
+   "tenders": 174
+  },
+  {
+   "month": "2024-05",
+   "bytes": 3735494,
+   "file": "itemwise-2024-05.xlsx",
+   "rows": 28043,
+   "tenders": 166
+  },
+  {
+   "month": "2024-06",
+   "bytes": 5606201,
+   "file": "itemwise-2024-06.xlsx",
+   "rows": 39499,
+   "tenders": 1187
+  },
+  {
+   "month": "2024-07",
+   "bytes": 14810700,
+   "file": "itemwise-2024-07.xlsx",
+   "rows": 103565,
+   "tenders": 3887
+  },
+  {
+   "month": "2024-08",
+   "bytes": 16448049,
+   "file": "itemwise-2024-08.xlsx",
+   "rows": 112388,
+   "tenders": 5967
+  },
+  {
+   "month": "2024-09",
+   "bytes": 12390504,
+   "file": "itemwise-2024-09.xlsx",
+   "rows": 84462,
+   "tenders": 4283
+  },
+  {
+   "month": "2024-10",
+   "bytes": 14716364,
+   "file": "itemwise-2024-10.xlsx",
+   "rows": 105160,
+   "tenders": 3327
+  },
+  {
+   "month": "2024-11",
+   "bytes": 13604217,
+   "file": "itemwise-2024-11.xlsx",
+   "rows": 97623,
+   "tenders": 3692
+  },
+  {
+   "month": "2024-12",
+   "bytes": 14833336,
+   "file": "itemwise-2024-12.xlsx",
+   "rows": 104038,
+   "tenders": 3562
+  },
+  {
+   "month": "2025-01",
+   "bytes": 12864129,
+   "file": "itemwise-2025-01.xlsx",
+   "rows": 92363,
+   "tenders": 3026
+  },
+  {
+   "month": "2025-02",
+   "bytes": 16027791,
+   "file": "itemwise-2025-02.xlsx",
+   "rows": 114884,
+   "tenders": 3474
+  },
+  {
+   "month": "2025-03",
+   "bytes": 15025654,
+   "file": "itemwise-2025-03.xlsx",
+   "rows": 107363,
+   "tenders": 3220
+  },
+  {
+   "month": "2025-04",
+   "bytes": 10874405,
+   "file": "itemwise-2025-04.xlsx",
+   "rows": 76644,
+   "tenders": 2814
+  },
+  {
+   "month": "2025-05",
+   "bytes": 14175584,
+   "file": "itemwise-2025-05.xlsx",
+   "rows": 104481,
+   "tenders": 2729
+  },
+  {
+   "month": "2025-06",
+   "bytes": 11865927,
+   "file": "itemwise-2025-06.xlsx",
+   "rows": 82274,
+   "tenders": 3087
+  },
+  {
+   "month": "2025-07",
+   "bytes": 16923196,
+   "file": "itemwise-2025-07.xlsx",
+   "rows": 117070,
+   "tenders": 4374
+  },
+  {
+   "month": "2025-08",
+   "bytes": 14194035,
+   "file": "itemwise-2025-08.xlsx",
+   "rows": 97035,
+   "tenders": 3406
+  },
+  {
+   "month": "2025-09",
+   "bytes": 19385606,
+   "file": "itemwise-2025-09.xlsx",
+   "rows": 135639,
+   "tenders": 6651
+  },
+  {
+   "month": "2025-10",
+   "bytes": 15796213,
+   "file": "itemwise-2025-10.xlsx",
+   "rows": 110483,
+   "tenders": 3085
+  },
+  {
+   "month": "2025-11",
+   "bytes": 12051016,
+   "file": "itemwise-2025-11.xlsx",
+   "rows": 82420,
+   "tenders": 3116
+  },
+  {
+   "month": "2025-12",
+   "bytes": 14817003,
+   "file": "itemwise-2025-12.xlsx",
+   "rows": 103623,
+   "tenders": 3671
+  },
+  {
+   "month": "2026-01",
+   "bytes": 14433909,
+   "file": "itemwise-2026-01.xlsx",
+   "rows": 99372,
+   "tenders": 3699
+  },
+  {
+   "month": "2026-02",
+   "bytes": 11919112,
+   "file": "itemwise-2026-02.xlsx",
+   "rows": 82915,
+   "tenders": 3399
+  },
+  {
+   "month": "2026-03",
+   "bytes": 12440929,
+   "file": "itemwise-2026-03.xlsx",
+   "rows": 87104,
+   "tenders": 2827
+  },
+  {
+   "month": "2026-04",
+   "bytes": 7307997,
+   "file": "itemwise-2026-04.xlsx",
+   "rows": 51311,
+   "tenders": 2076
+  },
+  {
+   "month": "2026-05",
+   "bytes": 5972897,
+   "file": "itemwise-2026-05.xlsx",
+   "rows": 43241,
+   "tenders": 1942
+  },
+  {
+   "month": "2026-06",
+   "bytes": 4801112,
+   "file": "itemwise-2026-06.xlsx",
+   "rows": 32859,
+   "tenders": 1482
+  },
+  {
+   "month": "2026-07",
+   "bytes": 3399879,
+   "file": "itemwise-2026-07.xlsx",
+   "rows": 22482,
+   "tenders": 1152
+  },
+  {
+   "month": "2026-08",
+   "bytes": 1748606,
+   "file": "itemwise-2026-08.xlsx",
+   "rows": 11011,
+   "tenders": 777
+  },
+  {
+   "month": "2026-09",
+   "bytes": 386864,
+   "file": "itemwise-2026-09.xlsx",
+   "rows": 2403,
+   "tenders": 149
+  }
+ ],
+ "files": [
+  {
+   "file": "works-results-2023.xlsx",
+   "year": "2023",
+   "tenders": 5533,
+   "bids": 13015,
+   "bytes": 2274800
+  },
+  {
+   "file": "works-results-2024.xlsx",
+   "year": "2024",
+   "tenders": 33329,
+   "bids": 87072,
+   "bytes": 14724120
+  },
+  {
+   "file": "works-results-2025.xlsx",
+   "year": "2025",
+   "tenders": 43545,
+   "bids": 113548,
+   "bytes": 19492718
+  },
+  {
+   "file": "works-results-2026.xlsx",
+   "year": "2026",
+   "tenders": 19195,
+   "bids": 49299,
+   "bytes": 8395019
+  },
+  {
+   "file": "works-item-rates.xlsx",
+   "year": null,
+   "items": 171465,
+   "bytes": 20896888
+  },
+  {
+   "file": "works-bidders.xlsx",
+   "year": null,
+   "bidders": 26740,
+   "bytes": 10218785
+  }
+ ]
+}

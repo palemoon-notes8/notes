@@ -1,0 +1,282 @@
+{
+ "2023-06": {
+  "bytes": 135184,
+  "file": "itemwise-2023-06.xlsx",
+  "hash": "1dde05f6559529baf3105b583f4d541fbcdb0aa8",
+  "rows": 912,
+  "tenders": 33
+ },
+ "2023-07": {
+  "bytes": 428436,
+  "file": "itemwise-2023-07.xlsx",
+  "hash": "756a25715b0ca0e9864a47ba9858876b0ad57f11",
+  "rows": 2991,
+  "tenders": 117
+ },
+ "2023-08": {
+  "bytes": 2852151,
+  "file": "itemwise-2023-08.xlsx",
+  "hash": "8438e48d7d972813940dc84d9afb6ffd39ea356a",
+  "rows": 21978,
+  "tenders": 729
+ },
+ "2023-09": {
+  "bytes": 7971110,
+  "file": "itemwise-2023-09.xlsx",
+  "hash": "4cebdd0d29604c10af51a8cd4a167447a83185dd",
+  "rows": 62720,
+  "tenders": 1127
+ },
+ "2023-10": {
+  "bytes": 6968908,
+  "file": "itemwise-2023-10.xlsx",
+  "hash": "606ca4c49e6bcf55880b7a360d40a52fecdf59b9",
+  "rows": 53671,
+  "tenders": 973
+ },
+ "2023-11": {
+  "bytes": 8229602,
+  "file": "itemwise-2023-11.xlsx",
+  "hash": "692e811b2d41079ea4ca639f6abf9d7978c14940",
+  "rows": 63455,
+  "tenders": 1045
+ },
+ "2023-12": {
+  "bytes": 9624704,
+  "file": "itemwise-2023-12.xlsx",
+  "hash": "f6a06dddec9970aceec97c96bee27ca31836e139",
+  "rows": 71341,
+  "tenders": 1423
+ },
+ "2024-01": {
+  "bytes": 9729942,
+  "file": "itemwise-2024-01.xlsx",
+  "hash": "df512bee288db0ec578c32d5741be43dcd934bf3",
+  "rows": 70137,
+  "tenders": 1707
+ },
+ "2024-02": {
+  "bytes": 13657653,
+  "file": "itemwise-2024-02.xlsx",
+  "hash": "0ea3ed119516e249d2cc93dd4886994f3bace9c9",
+  "rows": 94392,
+  "tenders": 2461
+ },
+ "2024-03": {
+  "bytes": 12193328,
+  "file": "itemwise-2024-03.xlsx",
+  "hash": "45b93915f06ba70bb7d9fe7685c46b802b994828",
+  "rows": 88932,
+  "tenders": 2418
+ },
+ "2024-04": {
+  "bytes": 2975529,
+  "file": "itemwise-2024-04.xlsx",
+  "hash": "a687dc7ab6f27097c108e929b4e3ec0a4f02c977",
+  "rows": 21158,
+  "tenders": 174
+ },
+ "2024-05": {
+  "bytes": 3735494,
+  "file": "itemwise-2024-05.xlsx",
+  "hash": "62cf58ad261d2db61a3eb2d962e201a57ae20d00",
+  "rows": 28043,
+  "tenders": 166
+ },
+ "2024-06": {
+  "bytes": 5606201,
+  "file": "itemwise-2024-06.xlsx",
+  "hash": "3ec0a783487f9e611994fd17eb5b6ac21b59378b",
+  "rows": 39499,
+  "tenders": 1187
+ },
+ "2024-07": {
+  "bytes": 14810700,
+  "file": "itemwise-2024-07.xlsx",
+  "hash": "e7b2a9ec6ba7de00cbfa71943124c283bcfd5702",
+  "rows": 103565,
+  "tenders": 3887
+ },
+ "2024-08": {
+  "bytes": 16448049,
+  "file": "itemwise-2024-08.xlsx",
+  "hash": "7446c314f4a9e81a8cd68117fd6844946ff0aae6",
+  "rows": 112388,
+  "tenders": 5967
+ },
+ "2024-09": {
+  "bytes": 12390504,
+  "file": "itemwise-2024-09.xlsx",
+  "hash": "eca39cae9f4e871d06acf709cf428f1c6d690e2b",
+  "rows": 84462,
+  "tenders": 4283
+ },
+ "2024-10": {
+  "bytes": 14716364,
+  "file": "itemwise-2024-10.xlsx",
+  "hash": "1c7da7bfcefc9d627239e4a7648659cdf4ce8f46",
+  "rows": 105160,
+  "tenders": 3327
+ },
+ "2024-11": {
+  "bytes": 13604217,
+  "file": "itemwise-2024-11.xlsx",
+  "hash": "419241c19ae09c3557750e639d5359be7a37bebd",
+  "rows": 97623,
+  "tenders": 3692
+ },
+ "2024-12": {
+  "bytes": 14833336,
+  "file": "itemwise-2024-12.xlsx",
+  "hash": "467b20e1b8c98ee02d109cb011cae75faadc39e9",
+  "rows": 104038,
+  "tenders": 3562
+ },
+ "2025-01": {
+  "bytes": 12864129,
+  "file": "itemwise-2025-01.xlsx",
+  "hash": "9f27cda25acf72deacc6fa4836d06b5d614051c3",
+  "rows": 92363,
+  "tenders": 3026
+ },
+ "2025-02": {
+  "bytes": 16027791,
+  "file": "itemwise-2025-02.xlsx",
+  "hash": "1d446b21c33dfdb3fbd80c1d07c773d0f88091ca",
+  "rows": 114884,
+  "tenders": 3474
+ },
+ "2025-03": {
+  "bytes": 15025654,
+  "file": "itemwise-2025-03.xlsx",
+  "hash": "0f484b3a53cb80ac429ad841508622baf5b5f35b",
+  "rows": 107363,
+  "tenders": 3220
+ },
+ "2025-04": {
+  "bytes": 10874405,
+  "file": "itemwise-2025-04.xlsx",
+  "hash": "396d00940550c1dbc1a4534d577532e7a3f991a9",
+  "rows": 76644,
+  "tenders": 2814
+ },
+ "2025-05": {
+  "bytes": 14175584,
+  "file": "itemwise-2025-05.xlsx",
+  "hash": "eaf7e517b797b38272dea95c0ded5faf684ccddb",
+  "rows": 104481,
+  "tenders": 2729
+ },
+ "2025-06": {
+  "bytes": 11865927,
+  "file": "itemwise-2025-06.xlsx",
+  "hash": "d812e959d3a5d04daca29f95ce68a41abdfcb312",
+  "rows": 82274,
+  "tenders": 3087
+ },
+ "2025-07": {
+  "bytes": 16923196,
+  "file": "itemwise-2025-07.xlsx",
+  "hash": "e90ebb26e1d9853d25f191eae0f0695268b035cb",
+  "rows": 117070,
+  "tenders": 4374
+ },
+ "2025-08": {
+  "bytes": 14194035,
+  "file": "itemwise-2025-08.xlsx",
+  "hash": "97758fd9d0bbe241ef19a40a34bcb2c27df0389b",
+  "rows": 97035,
+  "tenders": 3406
+ },
+ "2025-09": {
+  "bytes": 19385606,
+  "file": "itemwise-2025-09.xlsx",
+  "hash": "c10552f179f66123bfd5cc5be88946515e332df4",
+  "rows": 135639,
+  "tenders": 6651
+ },
+ "2025-10": {
+  "bytes": 15796213,
+  "file": "itemwise-2025-10.xlsx",
+  "hash": "ed473b42e3be1312cfbae9cc51aa87275ecf7864",
+  "rows": 110483,
+  "tenders": 3085
+ },
+ "2025-11": {
+  "bytes": 12051016,
+  "file": "itemwise-2025-11.xlsx",
+  "hash": "119f27f134c04e4f808ecfb9ccf68f751dddc673",
+  "rows": 82420,
+  "tenders": 3116
+ },
+ "2025-12": {
+  "bytes": 14817003,
+  "file": "itemwise-2025-12.xlsx",
+  "hash": "65d12f2f6d3c9c43ed57b9abe8c0a6837cb1f1c8",
+  "rows": 103623,
+  "tenders": 3671
+ },
+ "2026-01": {
+  "bytes": 14433909,
+  "file": "itemwise-2026-01.xlsx",
+  "hash": "eedf9e2c1b97e51000bc45ae13ffde5f0703e4df",
+  "rows": 99372,
+  "tenders": 3699
+ },
+ "2026-02": {
+  "bytes": 11919112,
+  "file": "itemwise-2026-02.xlsx",
+  "hash": "de7f711e77f7fc3dfb5d17ef2d00455a69594835",
+  "rows": 82915,
+  "tenders": 3399
+ },
+ "2026-03": {
+  "bytes": 12440929,
+  "file": "itemwise-2026-03.xlsx",
+  "hash": "413dea2e26097fbcf47e62c25feb7a42cd8202d3",
+  "rows": 87104,
+  "tenders": 2827
+ },
+ "2026-04": {
+  "bytes": 7307997,
+  "file": "itemwise-2026-04.xlsx",
+  "hash": "b7942e125b6b3c343a750a0c4ac616d144fe4b59",
+  "rows": 51311,
+  "tenders": 2076
+ },
+ "2026-05": {
+  "bytes": 5972897,
+  "file": "itemwise-2026-05.xlsx",
+  "hash": "1e055818f698b940b30bbc87f59cabf27fa4d2c4",
+  "rows": 43241,
+  "tenders": 1942
+ },
+ "2026-06": {
+  "bytes": 4801112,
+  "file": "itemwise-2026-06.xlsx",
+  "hash": "c8bcfa41debf7e90fcc5df9061a7a6fdde2bf960",
+  "rows": 32859,
+  "tenders": 1482
+ },
+ "2026-07": {
+  "bytes": 3399879,
+  "file": "itemwise-2026-07.xlsx",
+  "hash": "0796cbea28e30d3dd4ee276154a2eebb5d75f89d",
+  "rows": 22482,
+  "tenders": 1152
+ },
+ "2026-08": {
+  "bytes": 1748606,
+  "file": "itemwise-2026-08.xlsx",
+  "hash": "b5ea0227a208792b2ce319a0cea2e91152dc71c0",
+  "rows": 11011,
+  "tenders": 777
+ },
+ "2026-09": {
+  "bytes": 386864,
+  "file": "itemwise-2026-09.xlsx",
+  "hash": "b600f1f96962118b44797375263d19c1c3400c83",
+  "rows": 2403,
+  "tenders": 149
+ }
+}
