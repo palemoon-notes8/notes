@@ -1,6 +1,6 @@
 # CineBharat
 
-India-focused movie site: in cinemas now, coming soon, and every movie, filterable by language (Hindi, Tamil, Telugu, Malayalam, Kannada, Bengali, Marathi, Punjabi, Gujarati, Bhojpuri, English), genre and year. Search, trailers, cast and "where to watch in India" (OTT) on each movie.
+India-focused movie site: in cinemas now, coming soon, and every released movie (scrolls through the whole TMDB catalogue month by month; a "World" chip includes all languages), filterable by language (Hindi, Tamil, Telugu, Malayalam, Kannada, Bengali, Marathi, Punjabi, Gujarati, Bhojpuri, English), genre and year. Search, trailers, cast and "where to watch in India" (OTT) on each movie.
 
 Static site (no build): `index.html`, `style.css`, `app.js`, `config.js`. Data comes live from [TMDB](https://www.themoviedb.org/) using `region=IN`.
 

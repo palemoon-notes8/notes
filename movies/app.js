@@ -8,11 +8,11 @@
   const LANGS = [
     ["", "All India"], ["hi", "Hindi"], ["ta", "Tamil"], ["te", "Telugu"], ["ml", "Malayalam"],
     ["kn", "Kannada"], ["bn", "Bengali"], ["mr", "Marathi"], ["pa", "Punjabi"], ["gu", "Gujarati"],
-    ["bho", "Bhojpuri"], ["en", "English"],
+    ["bho", "Bhojpuri"], ["en", "English"], ["*", "World (all languages)"],
   ];
   const LANG_NAME = Object.fromEntries(LANGS);
   const $ = (id) => document.getElementById(id);
-  const state = { lang: "", genre: "", year: "", sort: "popularity.desc", page: 1, pages: 1, query: "" };
+  const state = { token: 0, chunks: [], ci: 0, done: false, lang: "", genre: "", year: "", sort: "popularity.desc", page: 1, pages: 1, query: "" };
 
   const iso = (d) => d.toISOString().slice(0, 10);
   const addDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return iso(d); };
@@ -32,7 +32,7 @@
   function discoverParams(extra = {}) {
     return {
       region: REGION, language: "en-IN", include_adult: "false",
-      with_original_language: state.lang || INDIAN,
+      with_original_language: state.lang === "*" ? "" : state.lang || INDIAN,
       with_genres: state.genre, ...extra,
     };
   }
@@ -42,10 +42,20 @@
   const getSoon = () => tmdb("/discover/movie", discoverParams({
     with_release_type: "2|3", "release_date.gte": addDays(1), "release_date.lte": addDays(150),
     sort_by: "primary_release_date.asc" }));
-  const getAll = (page) => tmdb("/discover/movie", discoverParams({
-    sort_by: state.sort, page, primary_release_year: state.year,
-    "primary_release_date.lte": iso(new Date()),
-    ...(state.sort === "vote_average.desc" ? { "vote_count.gte": 50 } : {}) }));
+  // TMDB caps any single query at 500 pages (10,000 titles), so "every movie" is fetched in date chunks.
+  function buildChunks() {
+    const today = iso(new Date()), now = new Date(), out = [];
+    const month = (y, m) => ({ gte: `${y}-${String(m).padStart(2, "0")}-01`,
+      lte: iso(new Date(Date.UTC(y, m, 0))) });
+    const years = state.year ? [Number(state.year)] : Array.from({ length: now.getFullYear() - 1999 }, (_, i) => now.getFullYear() - i);
+    for (const y of years) for (let m = 12; m >= 1; m--) { const c = month(y, m); if (c.gte <= today) out.push({ gte: c.gte, lte: c.lte < today ? c.lte : today }); }
+    if (!state.year) for (let y = 1999; y >= 1900; y--) out.push({ gte: `${y}-01-01`, lte: `${y}-12-31` });
+    return out;
+  }
+  const getAll = (chunk, page) => tmdb("/discover/movie", discoverParams({
+    sort_by: state.sort, page,
+    "primary_release_date.gte": chunk.gte, "primary_release_date.lte": chunk.lte,
+    ...(state.sort === "vote_average.desc" ? { "vote_count.gte": 5 } : {}) }));
   const getSearch = (q, page) => tmdb("/search/movie", { query: q, page, region: REGION, language: "en-IN", include_adult: "false" });
   const getGenres = () => tmdb("/genre/movie/list", { language: "en" });
   const getDetail = (id) => tmdb("/movie/" + id, { append_to_response: "videos,credits,watch/providers", language: "en-IN" });
@@ -90,7 +100,7 @@
   }
 
   async function loadSections() {
-    $("allTitle").textContent = state.lang ? LANG_NAME[state.lang] + " movies" : "All Indian movies";
+    $("allTitle").textContent = state.lang === "*" ? "Every movie in the world" : state.lang ? LANG_NAME[state.lang] + " movies" : "Every Indian movie";
     const [now, soon] = DEMO ? [demoPage(), { results: demoMovies().slice(0, 8).reverse() }]
       : await Promise.all([getNow(), getSoon()]).catch(showError);
     if (!now) return;
@@ -101,18 +111,40 @@
     await loadAll(true);
   }
 
+  let busy = false;
   async function loadAll(reset) {
-    if (reset) { state.page = 1; $("grid").innerHTML = ""; }
-    let data;
+    if (busy && !reset) return;
+    const token = ++state.token;
+    if (reset) { state.page = 1; state.ci = 0; state.done = false; state.chunks = buildChunks(); $("grid").innerHTML = ""; }
+    busy = true;
     try {
-      data = DEMO ? demoPage()
-        : state.query ? await getSearch(state.query, state.page) : await getAll(state.page);
+      if (DEMO || state.query) {
+        const data = DEMO ? demoPage() : await getSearch(state.query, state.page);
+        if (token !== state.token) return;
+        remember(data.results);
+        $("grid").insertAdjacentHTML("beforeend", data.results.map(card).join(""));
+        state.done = state.page >= Math.min(data.total_pages || 1, 500);
+      } else {
+        // walk date chunks (newest first) until a page with movies is found
+        while (state.ci < state.chunks.length) {
+          const data = await getAll(state.chunks[state.ci], state.page);
+          if (token !== state.token) return;
+          const last = state.page >= Math.min(data.total_pages || 1, 500);
+          if (last) { state.ci++; state.page = 1; } else state.page++;
+          if (data.results.length) {
+            remember(data.results);
+            $("grid").insertAdjacentHTML("beforeend", data.results.map(card).join(""));
+            break;
+          }
+        }
+        state.done = state.ci >= state.chunks.length;
+      }
     } catch (e) { return showError(e); }
-    state.pages = data.total_pages || 1;
-    remember(data.results);
-    $("grid").insertAdjacentHTML("beforeend", data.results.map(card).join(""));
+    finally { if (token === state.token) busy = false; }
     $("empty").hidden = $("grid").children.length > 0;
-    $("more").hidden = state.page >= state.pages;
+    $("more").hidden = state.done;
+    // keep filling while the button is still on screen (small chunks may not push it out of view)
+    if (!state.done) requestAnimationFrame(() => { const r = $("more").getBoundingClientRect(); if (r.top < innerHeight + 800) $("more").click(); });
   }
 
   function showError(e) {
@@ -171,7 +203,8 @@
       state.lang = b.dataset.l; renderChips(); state.query = ""; $("q").value = ""; showSections(true); loadSections();
     };
     for (const id of ["genre", "year", "sort"]) $(id).onchange = (e) => { state[id] = e.target.value; state.query ? 0 : (id === "genre" ? loadSections() : loadAll(true)); };
-    $("more").onclick = () => { state.page++; loadAll(false); };
+    $("more").onclick = () => { if (state.query || DEMO) state.page++; loadAll(false); };
+    new IntersectionObserver((en) => { if (en[0].isIntersecting && !$("more").hidden) $("more").click(); }, { rootMargin: "800px" }).observe($("more"));
     document.body.addEventListener("click", (e) => {
       const c = e.target.closest("[data-id]"); if (c) openDetail(Number(c.dataset.id));
     });
