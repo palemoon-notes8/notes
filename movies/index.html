@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CineBharat – Latest & All Movies in India</title>
+<meta name="description" content="Now showing, upcoming and all Indian movies – Hindi, Tamil, Telugu, Malayalam, Kannada, Bengali, Marathi and more.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <a class="logo" href="./">Cine<span>Bharat</span> 🇮🇳</a>
+  <form id="searchForm" role="search"><input id="q" type="search" placeholder="Search any movie…" autocomplete="off"></form>
+</header>
+
+<div id="demoBanner" class="banner" hidden>Demo data – add your free TMDB key in <code>config.js</code> to see real, live movies.</div>
+
+<section class="hero" id="hero" hidden></section>
+
+<nav class="chips" id="langs" aria-label="Language"></nav>
+
+<main id="main">
+  <section id="nowSec"><h2>In cinemas now <small>India</small></h2><div class="row" id="nowRow"></div></section>
+  <section id="soonSec"><h2>Coming soon <small>India</small></h2><div class="row" id="soonRow"></div></section>
+  <section id="allSec">
+    <div class="allHead">
+      <h2 id="allTitle">All movies</h2>
+      <div class="filters">
+        <select id="genre"><option value="">All genres</option></select>
+        <select id="year"><option value="">Any year</option></select>
+        <select id="sort">
+          <option value="popularity.desc">Popular</option>
+          <option value="primary_release_date.desc">Newest</option>
+          <option value="vote_average.desc">Top rated</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid" id="grid"></div>
+    <p class="empty" id="empty" hidden>No movies found.</p>
+    <button id="more" class="more" hidden>Load more</button>
+  </section>
+</main>
+
+<dialog id="modal"><button class="close" id="close" aria-label="Close">×</button><div id="detail"></div></dialog>
+
+<footer>Movie data from <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a>. This product uses the TMDB API but is not endorsed or certified by TMDB.</footer>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
