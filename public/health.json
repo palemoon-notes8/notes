@@ -1,12 +1,12 @@
 {
-  "last_success_at": "2026-10-03T03:25:59.624739+00:00",
-  "generated_at": "2026-10-03T03:25:51.642481+00:00",
+  "last_success_at": "2026-10-03T03:58:07.654869+00:00",
+  "generated_at": "2026-10-03T03:57:58.478235+00:00",
   "status": "healthy",
-  "count": 4174,
-  "emd_known": 4099,
+  "count": 4175,
+  "emd_known": 4100,
   "category_counts": {
     "WORKS": 2514,
-    "GOODS": 537,
+    "GOODS": 538,
     "SERVICES": 1123
   },
   "previous_count": 4174,
