@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-10-03T04:42:06.607323+00:00",
+  "generated_at": "2026-10-03T05:14:07.847553+00:00",
   "source": "https://kppp.karnataka.gov.in",
   "last_full_at": null,
-  "count": 4172,
+  "count": 4171,
   "category_counts": {
     "WORKS": 2514,
-    "GOODS": 537,
+    "GOODS": 536,
     "SERVICES": 1121
   },
   "tenders": [
@@ -151894,49 +151894,6 @@
         "workCategoryName": "Buildings",
         "tenderType": "RFQ",
         "itemwise": true
-      }
-    },
-    {
-      "id": "61561",
-      "ref_no": "DMA/2026-27/IND6631",
-      "title": "Supply of Digital Monitoring System to Udupi CMC",
-      "category": "GOODS",
-      "department": "Directorate of Municipal Administration",
-      "location": "DMA City Municipal Council Udupi",
-      "district": "",
-      "city": "",
-      "amount": 756498.0,
-      "amount_display": "756498.0",
-      "emd": 19000.0,
-      "fee": 500.0,
-      "published_date": "17-09-2026 14:52:28",
-      "closing_date": "03-10-2026 10:30:22",
-      "status": "PUBLISHED",
-      "status_text": "Published",
-      "raw": {
-        "id": 61561,
-        "tenderNumber": "DMA/2026-27/IND6631",
-        "title": "Supply of Digital Monitoring System to Udupi CMC",
-        "description": "Supply Install of Digital Monitoring System to Udupi CMC",
-        "category": "GOODS",
-        "categoryText": "Goods",
-        "ecv": 756498.0,
-        "deptId": 2146,
-        "fileName": null,
-        "status": "PUBLISHED",
-        "statusText": "Published",
-        "nitId": 61670,
-        "publishedDate": "17-09-2026 14:52:28",
-        "tenderClosureDate": "03-10-2026 10:30:22",
-        "invitingStrategy": "OPEN",
-        "invitingStrategyText": "Open",
-        "deptName": "Directorate of Municipal Administration",
-        "locationId": 2411,
-        "locationName": "DMA City Municipal Council Udupi",
-        "ecvtenderYn": true,
-        "canViewAddendum": false,
-        "canViewCorrigendum": false,
-        "itemwise": false
       }
     },
     {
