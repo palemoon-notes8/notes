@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Construction Calculator</title>
+<style>
+  :root { --bg:#f4f5f7; --card:#fff; --ink:#1d2433; --muted:#6b7280; --line:#dfe3ea; --accent:#d97706; --accent-ink:#fff; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14171d; --card:#1e232c; --ink:#e8ebf0; --muted:#9aa3b2; --line:#303744; --accent:#f59e0b; --accent-ink:#1a1a1a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:16px; max-width:760px; margin:0 auto; }
+  h1 { font-size:1.4rem; margin:0; }
+  header p { margin:4px 0 0; color:var(--muted); font-size:.9rem; }
+  nav { display:flex; gap:6px; overflow-x:auto; padding:0 16px 8px; max-width:760px; margin:0 auto; }
+  nav button { flex:none; border:1px solid var(--line); background:var(--card); color:var(--ink); padding:8px 14px; border-radius:999px; font:inherit; cursor:pointer; }
+  nav button[aria-selected=true] { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); font-weight:600; }
+  main { max-width:760px; margin:0 auto; padding:8px 16px 40px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:14px; }
+  .card h2 { font-size:1rem; margin:0 0 12px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+  label { display:block; font-size:.8rem; color:var(--muted); }
+  input, select { width:100%; margin-top:4px; padding:9px 10px; font:inherit; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:8px; }
+  input:focus, select:focus { outline:2px solid var(--accent); outline-offset:1px; }
+  table { width:100%; border-collapse:collapse; }
+  td { padding:8px 0; border-bottom:1px solid var(--line); }
+  td:last-child { text-align:right; font-weight:600; font-variant-numeric:tabular-nums; }
+  tr:last-child td { border-bottom:0; }
+  .note { font-size:.8rem; color:var(--muted); margin-top:10px; }
+  .total td { font-size:1.1rem; color:var(--accent); }
+  .row { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .row button { padding:8px 14px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink); font:inherit; cursor:pointer; }
+  @media print { nav, .row, header p { display:none; } body { background:#fff; color:#000; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Construction Calculator</h1>
+  <p>Quick material &amp; cost estimates. Metric units (m, m², m³, kg). Results are estimates — verify with your engineer.</p>
+</header>
+<nav id="tabs" role="tablist"></nav>
+<main id="panel"></main>
+
+<script>
+// ---- helpers --------------------------------------------------------------
+const $ = (s, r = document) => r.querySelector(s);
+const num = v => { const n = parseFloat(v); return Number.isFinite(n) && n > 0 ? n : 0; };
+const fmt = (n, d = 2) => n.toLocaleString(undefined, { maximumFractionDigits: d, minimumFractionDigits: 0 });
+const CEMENT_BAG_M3 = 0.0347;     // 50 kg bag ≈ 0.0347 m³
+const CEMENT_BAG_KG = 50;
+
+// field(id,label,default[,opts]) -> html
+const field = (id, label, val, attrs = '') =>
+  `<label>${label}<input id="${id}" type="number" min="0" step="any" inputmode="decimal" value="${val}" ${attrs}></label>`;
+const select = (id, label, options) =>
+  `<label>${label}<select id="${id}">${options.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select></label>`;
+const rows = list => `<table>${list.map(([k, v, cls]) => `<tr class="${cls || ''}"><td>${k}</td><td>${v}</td></tr>`).join('')}</table>`;
+const val = id => $('#' + id).value;
+
+// ---- calculators ----------------------------------------------------------
+// Each: { name, html, calc() -> {rows, note} }
+const MIX = [['1:1.5:3', 'M20 (1:1.5:3)'], ['1:2:4', 'M15 (1:2:4)'], ['1:1:2', 'M25 (1:1:2)'], ['1:3:6', 'M10 (1:3:6)']];
+const parseMix = s => s.split(':').map(Number);
+
+const calculators = {
+  Concrete: {
+    html: () => `
+      <div class="card"><h2>Concrete quantity</h2><div class="grid">
+        ${select('shape', 'Element', [['box', 'Slab / beam / footing (L×W×H)'], ['col', 'Round column (dia × height)']])}
+        ${field('l', 'Length (m)', 5)}${field('w', 'Width / diameter (m)', 4)}${field('h', 'Thickness / height (m)', 0.15)}
+        ${field('n', 'Number of elements', 1)}
+        ${select('mix', 'Mix ratio (cement:sand:aggregate)', MIX)}
+        ${field('waste', 'Wastage (%)', 5)}
+      </div></div>`,
+    calc() {
+      const L = num(val('l')), W = num(val('w')), H = num(val('h')), n = num(val('n')) || 1;
+      let vol = val('shape') === 'col' ? Math.PI * (W / 2) ** 2 * H : L * W * H;
+      vol *= n * (1 + num(val('waste')) / 100);
+      const dry = vol * 1.54, [c, s, a] = parseMix(val('mix')), t = c + s + a;
+      const cementM3 = dry * c / t;
+      return { rows: [
+        ['Wet concrete volume', `${fmt(vol, 3)} m³`],
+        ['Cement', `${fmt(Math.ceil(cementM3 / CEMENT_BAG_M3))} bags (50 kg)`],
+        ['Sand', `${fmt(dry * s / t, 2)} m³`],
+        ['Aggregate', `${fmt(dry * a / t, 2)} m³`],
+      ], note: 'Dry volume factor 1.54. For a column the "length" field is ignored; use width = diameter, thickness = height.',
+        items: { cement: Math.ceil(cementM3 / CEMENT_BAG_M3), sand: dry * s / t, agg: dry * a / t } };
+    }
+  },
+
+  Brickwork: {
+    html: () => `
+      <div class="card"><h2>Brick / block wall</h2><div class="grid">
+        ${field('wl', 'Wall length (m)', 10)}${field('wh', 'Wall height (m)', 3)}${field('wt', 'Wall thickness (m)', 0.2)}
+        ${field('open', 'Doors/windows area (m²)', 4)}
+        ${field('bl', 'Brick length (mm)', 190)}${field('bw', 'Brick width (mm)', 90)}${field('bh', 'Brick height (mm)', 90)}
+        ${field('mt', 'Mortar joint (mm)', 10)}
+        ${select('mm', 'Mortar (cement:sand)', [['1:4', '1:4'], ['1:5', '1:5'], ['1:6', '1:6'], ['1:3', '1:3']])}
+        ${field('waste', 'Wastage (%)', 5)}
+      </div></div>`,
+    calc() {
+      const area = Math.max(0, num(val('wl')) * num(val('wh')) - num(val('open')));
+      const vol = area * num(val('wt'));
+      const j = num(val('mt')), bl = num(val('bl')), bw = num(val('bw')), bh = num(val('bh'));
+      const withMortar = (bl + j) * (bw + j) * (bh + j) / 1e9, plain = bl * bw * bh / 1e9;
+      if (!withMortar) return { rows: [['Enter brick size', '—']] };
+      const bricks = Math.ceil(vol / withMortar * (1 + num(val('waste')) / 100));
+      const mortarWet = Math.max(0, vol - (vol / withMortar) * plain), dry = mortarWet * 1.33;
+      const [c, s] = parseMix(val('mm')), cementM3 = dry * c / (c + s);
+      return { rows: [
+        ['Net wall area', `${fmt(area)} m²`],
+        ['Wall volume', `${fmt(vol, 3)} m³`],
+        ['Bricks / blocks', `${fmt(bricks)} nos`],
+        ['Cement', `${fmt(Math.ceil(cementM3 / CEMENT_BAG_M3))} bags`],
+        ['Sand', `${fmt(dry * s / (c + s), 2)} m³`],
+      ], note: 'Mortar dry volume factor 1.33. Brick size is without mortar.',
+        items: { bricks, cement: Math.ceil(cementM3 / CEMENT_BAG_M3), sand: dry * s / (c + s) } };
+    }
+  },
+
+  Plaster: {
+    html: () => `
+      <div class="card"><h2>Plaster</h2><div class="grid">
+        ${field('area', 'Area (m²)', 100)}${field('th', 'Thickness (mm)', 12)}
+        ${select('pm', 'Mortar (cement:sand)', [['1:4', '1:4'], ['1:5', '1:5'], ['1:6', '1:6'], ['1:3', '1:3']])}
+        ${field('waste', 'Wastage (%)', 5)}
+      </div></div>`,
+    calc() {
+      const wet = num(val('area')) * num(val('th')) / 1000 * (1 + num(val('waste')) / 100);
+      const dry = wet * 1.27, [c, s] = parseMix(val('pm')), cementM3 = dry * c / (c + s);
+      return { rows: [
+        ['Wet mortar volume', `${fmt(wet, 3)} m³`],
+        ['Cement', `${fmt(Math.ceil(cementM3 / CEMENT_BAG_M3))} bags`],
+        ['Sand', `${fmt(dry * s / (c + s), 2)} m³`],
+      ], note: 'Dry volume factor 1.27.', items: { cement: Math.ceil(cementM3 / CEMENT_BAG_M3), sand: dry * s / (c + s) } };
+    }
+  },
+
+  Tiles: {
+    html: () => `
+      <div class="card"><h2>Flooring / tiles</h2><div class="grid">
+        ${field('fl', 'Room length (m)', 5)}${field('fw', 'Room width (m)', 4)}
+        ${field('tl', 'Tile length (mm)', 600)}${field('tw', 'Tile width (mm)', 600)}
+        ${field('waste', 'Wastage (%)', 10)}
+        ${field('box', 'Tiles per box (optional)', 4)}
+      </div></div>`,
+    calc() {
+      const area = num(val('fl')) * num(val('fw')), ta = num(val('tl')) * num(val('tw')) / 1e6;
+      if (!ta) return { rows: [['Enter tile size', '—']] };
+      const tiles = Math.ceil(area / ta * (1 + num(val('waste')) / 100)), box = num(val('box'));
+      const r = [['Floor area', `${fmt(area)} m²`], ['Tiles needed', `${fmt(tiles)} nos`]];
+      if (box) r.push(['Boxes', `${fmt(Math.ceil(tiles / box))}`]);
+      return { rows: r, items: { tiles } };
+    }
+  },
+
+  Steel: {
+    html: () => `
+      <div class="card"><h2>Reinforcement steel (kg)</h2><div class="grid">
+        ${select('dia', 'Bar diameter', [6, 8, 10, 12, 16, 20, 25, 32].map(d => [d, d + ' mm']))}
+        ${field('len', 'Length per bar (m)', 12)}${field('cnt', 'Number of bars', 50)}
+      </div></div>`,
+    calc() {
+      const d = num(val('dia')), kgm = d * d / 162, total = kgm * num(val('len')) * num(val('cnt'));
+      return { rows: [
+        ['Weight per metre', `${fmt(kgm, 3)} kg/m`],
+        ['Total length', `${fmt(num(val('len')) * num(val('cnt')))} m`],
+        ['Total weight', `${fmt(total)} kg`],
+        ['In tonnes', `${fmt(total / 1000, 3)} t`],
+      ], note: 'Formula: d² / 162 kg per metre.', items: { steelKg: total } };
+    }
+  },
+
+  Paint: {
+    html: () => `
+      <div class="card"><h2>Paint</h2><div class="grid">
+        ${field('area', 'Surface area (m²)', 100)}${field('coats', 'Coats', 2)}
+        ${field('cov', 'Coverage (m² per litre per coat)', 10)}${field('waste', 'Wastage (%)', 5)}
+      </div></div>`,
+    calc() {
+      const cov = num(val('cov'));
+      if (!cov) return { rows: [['Enter coverage', '—']] };
+      const l = num(val('area')) * num(val('coats')) / cov * (1 + num(val('waste')) / 100);
+      return { rows: [['Paint required', `${fmt(l, 1)} litres`], ['In 4 L cans', `${fmt(Math.ceil(l / 4))}`]], items: { paintL: l } };
+    }
+  },
+
+  Excavation: {
+    html: () => `
+      <div class="card"><h2>Excavation / earthwork</h2><div class="grid">
+        ${field('el', 'Length (m)', 10)}${field('ew', 'Width (m)', 8)}${field('ed', 'Depth (m)', 1.5)}
+        ${field('swell', 'Soil swell (%)', 25)}${field('truck', 'Truck capacity (m³)', 6)}
+      </div></div>`,
+    calc() {
+      const bank = num(val('el')) * num(val('ew')) * num(val('ed')), loose = bank * (1 + num(val('swell')) / 100), t = num(val('truck'));
+      const r = [['Excavated volume (bank)', `${fmt(bank, 2)} m³`], ['Loose volume to haul', `${fmt(loose, 2)} m³`]];
+      if (t) r.push(['Truck loads', `${fmt(Math.ceil(loose / t))}`]);
+      return { rows: r };
+    }
+  },
+
+  Cost: {
+    html: () => `
+      <div class="card"><h2>Cost estimate</h2>
+        <div class="grid">
+          ${field('q1', 'Cement (bags)', 100)}${field('r1', 'Rate per bag', 400)}
+          ${field('q2', 'Sand (m³)', 10)}${field('r2', 'Rate per m³', 1500)}
+          ${field('q3', 'Aggregate (m³)', 20)}${field('r3', 'Rate per m³', 1400)}
+          ${field('q4', 'Steel (kg)', 1000)}${field('r4', 'Rate per kg', 65)}
+          ${field('q5', 'Bricks (nos)', 5000)}${field('r5', 'Rate per brick', 8)}
+          ${field('lab', 'Labour cost', 50000)}${field('oh', 'Overheads &amp; profit (%)', 10)}
+        </div></div>`,
+    calc() {
+      const mat = [1, 2, 3, 4, 5].reduce((s, i) => s + num(val('q' + i)) * num(val('r' + i)), 0);
+      const sub = mat + num(val('lab')), oh = sub * num(val('oh')) / 100;
+      return { rows: [
+        ['Materials', fmt(mat)], ['Labour', fmt(num(val('lab')))], ['Overheads & profit', fmt(oh)],
+        ['Grand total', fmt(sub + oh), 'total'],
+      ], note: 'Enter your own quantities (from the other tabs) and local rates, in any currency.' };
+    }
+  },
+};
+
+// ---- UI -------------------------------------------------------------------
+const tabs = $('#tabs'), panel = $('#panel');
+let current = 'Concrete';
+
+function render() {
+  tabs.innerHTML = Object.keys(calculators).map(n =>
+    `<button role="tab" aria-selected="${n === current}" data-tab="${n}">${n}</button>`).join('');
+  panel.innerHTML = calculators[current].html() +
+    `<div class="card"><h2>Result</h2><div id="out"></div><div class="note" id="note"></div>
+     <div class="row"><button id="print">Print / Save PDF</button></div></div>`;
+  update();
+}
+function update() {
+  const r = calculators[current].calc();
+  $('#out').innerHTML = rows(r.rows);
+  $('#note').textContent = r.note || '';
+}
+tabs.addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { current = b.dataset.tab; render(); } });
+panel.addEventListener('input', update);
+panel.addEventListener('change', update);
+panel.addEventListener('click', e => { if (e.target.id === 'print') window.print(); });
+render();
+</script>
+</body>
+</html>
