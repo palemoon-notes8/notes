@@ -3,6 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#d97706">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="BuildCalc">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
 <title>Construction Calculator</title>
 <style>
   :root { --bg:#f4f5f7; --card:#fff; --ink:#1d2433; --muted:#6b7280; --line:#dfe3ea; --accent:#d97706; --accent-ink:#fff; }
@@ -245,6 +251,7 @@ panel.addEventListener('input', update);
 panel.addEventListener('change', update);
 panel.addEventListener('click', e => { if (e.target.id === 'print') window.print(); });
 render();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
 </html>
