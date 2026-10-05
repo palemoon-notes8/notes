@@ -207,6 +207,61 @@ const calculators = {
     }
   },
 
+  'Feet & Inches': {
+    html: () => `
+      <div class="card"><h2>Add / subtract lengths</h2><div class="grid">
+        ${field('a_ft', 'Length A — feet', 10)}${field('a_in', 'Length A — inches', 6)}
+        ${select('op', 'Operation', [['+', 'Add (A + B)'], ['-', 'Subtract (A − B)']])}
+        ${field('b_ft', 'Length B — feet', 3)}${field('b_in', 'Length B — inches', 9)}
+      </div></div>
+      <div class="card"><h2>Area &amp; volume (A × B × depth)</h2><div class="grid">
+        ${field('d_ft', 'Depth — feet (optional)', 0)}${field('d_in', 'Depth — inches (optional)', 0)}
+      </div><div class="note">Length A is the length and Length B the width. Add a depth to also get volume.</div></div>
+      <div class="card"><h2>Converter</h2><div class="grid">
+        ${field('c_ft', 'Feet', 12)}${field('c_in', 'Inches', 0)}
+        ${field('c_m', 'Or metres', 0)}
+      </div><div class="note">If "metres" is filled in, it is converted to feet &amp; inches instead.</div></div>`,
+    calc() {
+      const inches = (f, i) => num(f) * 12 + num(i);
+      const A = inches(val('a_ft'), val('a_in')), B = inches(val('b_ft'), val('b_in'));
+      const R = val('op') === '+' ? A + B : A - B, sign = R < 0 ? '−' : '';
+      const ftIn = t => { t = Math.abs(t); let f = Math.floor(t / 12), i = Math.round((t - f * 12) * 100) / 100; if (i >= 12) { f++; i -= 12; } return `${f}′ ${fmt(i)}″`; };
+      const sqft = A * B / 144, D = inches(val('d_ft'), val('d_in'));
+      const out = [
+        ['Result', `${sign}${ftIn(R)}`],
+        ['Result in inches', `${fmt(R, 2)} in`],
+        ['Result in metres', `${fmt(R * 0.0254, 3)} m`],
+        ['Area (A × B)', `${fmt(sqft, 2)} sq ft  (${fmt(sqft * 0.092903, 2)} m²)`],
+      ];
+      if (D) { const cuft = A * B * D / 1728; out.push(['Volume', `${fmt(cuft, 2)} cu ft  (${fmt(cuft * 0.0283168, 3)} m³)`]); }
+      const m = num(val('c_m'));
+      out.push(m ? ['Metres → feet & inches', ftIn(m / 0.0254)] : ['Feet & inches → metres', `${fmt(inches(val('c_ft'), val('c_in')) * 0.0254, 3)} m`]);
+      if (!m) out.push(['Feet & inches → mm', `${fmt(inches(val('c_ft'), val('c_in')) * 25.4, 1)} mm`]);
+      return { rows: out, note: '1 ft = 12 in = 0.3048 m.' };
+    }
+  },
+
+  GST: {
+    html: () => `
+      <div class="card"><h2>GST calculator</h2><div class="grid">
+        ${field('amt', 'Amount', 100000)}
+        ${select('gmode', 'Amount is', [['excl', 'Without GST (add GST)'], ['incl', 'With GST (remove GST)']])}
+        ${select('grate', 'GST rate', [[18, '18%'], [5, '5%'], [12, '12%'], [28, '28%'], [40, '40%'], [0, '0%']])}
+        ${field('grate_c', 'Or custom rate (%)', 0)}
+        ${select('gtype', 'Supply', [['intra', 'Same state (CGST + SGST)'], ['inter', 'Other state (IGST)']])}
+      </div></div>`,
+    calc() {
+      const amt = num(val('amt')), rate = num(val('grate_c')) || parseFloat(val('grate'));
+      const base = val('gmode') === 'incl' ? amt / (1 + rate / 100) : amt;
+      const gst = base * rate / 100;
+      const r = [['Taxable amount', fmt(base)]];
+      if (val('gtype') === 'intra') r.push([`CGST (${fmt(rate / 2, 2)}%)`, fmt(gst / 2)], [`SGST (${fmt(rate / 2, 2)}%)`, fmt(gst / 2)]);
+      else r.push([`IGST (${fmt(rate, 2)}%)`, fmt(gst)]);
+      r.push(['Total GST', fmt(gst)], ['Total amount', fmt(base + gst), 'total']);
+      return { rows: r, note: 'GST rates change — confirm the current rate for your item/service before invoicing.' };
+    }
+  },
+
   Cost: {
     html: () => `
       <div class="card"><h2>Cost estimate</h2>
@@ -217,13 +272,15 @@ const calculators = {
           ${field('q4', 'Steel (kg)', 1000)}${field('r4', 'Rate per kg', 65)}
           ${field('q5', 'Bricks (nos)', 5000)}${field('r5', 'Rate per brick', 8)}
           ${field('lab', 'Labour cost', 50000)}${field('oh', 'Overheads &amp; profit (%)', 10)}
+          ${field('cgst', 'GST on total (%)', 18)}
         </div></div>`,
     calc() {
       const mat = [1, 2, 3, 4, 5].reduce((s, i) => s + num(val('q' + i)) * num(val('r' + i)), 0);
       const sub = mat + num(val('lab')), oh = sub * num(val('oh')) / 100;
       return { rows: [
         ['Materials', fmt(mat)], ['Labour', fmt(num(val('lab')))], ['Overheads & profit', fmt(oh)],
-        ['Grand total', fmt(sub + oh), 'total'],
+        ['Total before GST', fmt(sub + oh)], ['GST', fmt((sub + oh) * num(val('cgst')) / 100)],
+        ['Grand total', fmt((sub + oh) * (1 + num(val('cgst')) / 100)), 'total'],
       ], note: 'Enter your own quantities (from the other tabs) and local rates, in any currency.' };
     }
   },
