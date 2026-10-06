@@ -511,7 +511,8 @@ const SESSION_CHECK = '957ec036a47b5f8c5ee58bd189b81bb1e31bcdb6b3abebe77f55adedb
 const SESSION_COOKIE = 't1s';
 // The sign-in page lives at a secret address; only its hash is here. Everyone else gets a plain 404.
 const LOGIN_PATH_HASH = '0bc8a761dcf1cef08cc1c26a64e060303bf218d4f466a2e7e86f540ea2617b67';
-const OPEN_PATHS = new Set(['/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png', '/icons/apple-touch-icon.png']);
+const OPEN_PATHS = new Set(['/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png', '/icons/apple-touch-icon.png',
+  '/finance/icon-192.png', '/finance/icon-512.png', '/finance/maskable-512.png']);
 function notFound() {
   return new Response('<!doctype html><html><head><meta name="robots" content="noindex"><title>404 Not Found</title></head><body><h1>404 Not Found</h1></body></html>', {
     status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow' }
@@ -585,6 +586,27 @@ export class Prefs extends DurableObject {
   }
   async putSummary(key, value) {
     await this.ctx.storage.put(`sum:${key}`, value);
+  }
+  // My Money (/finance/): one stored entry per record, newest change wins. Deleted records stay
+  // as small markers so the deletion reaches every device.
+  async financeAll() {
+    return [...(await this.ctx.storage.list({ prefix: 'fin:' })).values()];
+  }
+  async financeMerge(records) {
+    const keys = [...new Set(records.map((r) => `fin:${r.id}`))];
+    const current = new Map();
+    for (let i = 0; i < keys.length; i += 128) {
+      for (const [key, value] of await this.ctx.storage.get(keys.slice(i, i + 128))) current.set(key, value);
+    }
+    const updates = new Map();
+    for (const r of records) {
+      const key = `fin:${r.id}`;
+      const have = updates.get(key) || current.get(key);
+      if (!have || r.t > have.t) updates.set(key, r);
+    }
+    const entries = [...updates];
+    for (let i = 0; i < entries.length; i += 128) await this.ctx.storage.put(Object.fromEntries(entries.slice(i, i + 128)));
+    return this.financeAll();
   }
 }
 
@@ -664,6 +686,23 @@ async function prefs(request, env) {
   return json(await stub.merge(clean));
 }
 
+// My Money records (see public/finance/app.js): GET returns them all, PUT merges changed ones.
+const FINANCE_KINDS = new Set(['tx', 'acc', 'cat', 'bill', 'due']);
+async function finance(request, env) {
+  if (!env.PREFS) return json({ success: false, message: 'Sync is not set up.' }, 503);
+  const stub = env.PREFS.get(env.PREFS.idFromName('me'));
+  if (request.method === 'GET') return json({ success: true, records: await stub.financeAll() });
+  if (request.method !== 'PUT') return json({ success: false, message: 'Method not allowed.' }, 405);
+  const text = await request.text();
+  if (text.length > 2_000_000) return json({ success: false, message: 'Too large.' }, 413);
+  let body;
+  try { body = JSON.parse(text); } catch { return json({ success: false, message: 'Bad data.' }, 400); }
+  const records = (Array.isArray(body?.records) ? body.records : []).filter((r) => r && typeof r === 'object'
+    && typeof r.id === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(r.id) && FINANCE_KINDS.has(r.k)
+    && Number.isFinite(r.t) && JSON.stringify(r).length <= 4000).slice(0, 2000);
+  return json({ success: true, records: await stub.financeMerge(records) });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -681,6 +720,7 @@ export default {
     const allowed = OPEN_PATHS.has(url.pathname) || (await signedIn(request));
     if (!allowed) return notFound();
     if (url.pathname === '/api/prefs') return prefs(request, env);
+    if (url.pathname === '/api/finance') return finance(request, env);
     const summary = url.pathname.match(/^\/api\/summary\/(WORKS|GOODS|SERVICES)\/(\d+)$/);
     if (summary) return tenderSummary(summary[1], summary[2], env, ctx);
     if (request.method !== 'GET' && request.method !== 'HEAD') return json({ success: false, message: 'Method not allowed.' }, 405);

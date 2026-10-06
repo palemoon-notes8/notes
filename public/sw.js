@@ -18,6 +18,8 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== self.location.origin) return;
+  // My Money (/finance/) has its own service worker.
+  if (url.pathname.startsWith('/finance/')) return;
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/downloads/') || url.pathname.endsWith('.json') && url.pathname !== '/manifest.json') return;
 
   // The page: newest version when online, the saved one when offline.

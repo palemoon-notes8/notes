@@ -27,6 +27,12 @@ Data commits carry a skip-build marker: the website reads the data straight from
 
 The Worker serves the data files from this repo, falling back to the deployed copy.
 
+## My Money (`/finance/`)
+
+A personal finance app on the same private site: `public/finance/` (`index.html`, `app.js`, `app.css`, its own `manifest.json` and `sw.js`, so it installs on a phone as a separate "My Money" app and opens offline). It records daily spending, income and transfers between accounts (cash, bank, UPI wallet, credit card), with monthly budgets per category, bills and reminders (the "Paid" button records the payment and moves the bill to its next due date), money lent to or borrowed from people, monthly reports and CSV / JSON backup. Amounts accept sums like `120+45`.
+
+Records are kept on the device and synced through `/api/finance` to the same private store as TenderOne's saved lists (the `Prefs` Durable Object, one stored entry per record, newest change wins, deletions kept as markers), so every signed-in device shows the same book. It needs the same sign-in as the rest of the site.
+
 ## Deploying
 
 Cloudflare builds and deploys the Worker (configured in `wrangler.jsonc`) from this repo's `main` branch through its Git integration (Worker → Settings → Build). No secrets are needed.
