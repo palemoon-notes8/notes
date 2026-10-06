@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-06T06:17:38.515158+00:00",
+  "generated_at": "2026-10-06T06:21:47.478466+00:00",
   "source": "https://kppp.karnataka.gov.in",
   "last_full_at": null,
   "count": 3277,
@@ -2165,7 +2165,7 @@
         "locationName": "CESCOM Superintending Engineer Procurement Corporate Office Mysuru",
         "ecvtenderYn": true,
         "canViewAddendum": false,
-        "canViewCorrigendum": false,
+        "canViewCorrigendum": true,
         "itemwise": true
       }
     },
