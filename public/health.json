@@ -1,6 +1,6 @@
 {
-  "last_success_at": "2026-10-14T16:32:25.531128+00:00",
-  "generated_at": "2026-10-14T16:31:58.536148+00:00",
+  "last_success_at": "2026-10-14T17:04:49.112868+00:00",
+  "generated_at": "2026-10-14T17:04:31.259942+00:00",
   "status": "healthy",
   "count": 2868,
   "emd_known": 2841,
@@ -9,7 +9,7 @@
     "GOODS": 560,
     "SERVICES": 669
   },
-  "previous_count": 2866,
+  "previous_count": 2868,
   "guard": {
     "zero_protection": true,
     "abnormal_drop_protection": true,
