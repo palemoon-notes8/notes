@@ -1,15 +1,15 @@
 {
-  "last_success_at": "2026-10-15T13:07:43.251342+00:00",
-  "generated_at": "2026-10-15T13:07:22.165937+00:00",
+  "last_success_at": "2026-10-15T13:41:55.285698+00:00",
+  "generated_at": "2026-10-15T13:39:26.026672+00:00",
   "status": "healthy",
-  "count": 2834,
-  "emd_known": 2807,
+  "count": 2837,
+  "emd_known": 2810,
   "category_counts": {
-    "WORKS": 1585,
+    "WORKS": 1588,
     "GOODS": 586,
     "SERVICES": 663
   },
-  "previous_count": 2833,
+  "previous_count": 2834,
   "guard": {
     "zero_protection": true,
     "abnormal_drop_protection": true,
