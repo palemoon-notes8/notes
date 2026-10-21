@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-10-21T05:29:20.824021+00:00",
+  "generated_at": "2026-10-21T05:55:39.475620+00:00",
   "source": "https://kppp.karnataka.gov.in",
   "last_full_at": null,
-  "count": 3029,
+  "count": 3028,
   "category_counts": {
     "WORKS": 1692,
     "GOODS": 567,
-    "SERVICES": 770
+    "SERVICES": 769
   },
   "tenders": [
     {
@@ -82573,48 +82573,6 @@
         "canViewAddendum": false,
         "canViewCorrigendum": false,
         "itemwise": true
-      }
-    },
-    {
-      "id": "89872",
-      "ref_no": "FD/2026-27/SE0011",
-      "title": "Selection of an Agency for providing Specialized Technical Resources to the PMU of HRMS2 Directorate",
-      "category": "SERVICES",
-      "department": "Finance Department",
-      "location": "Human Resources Management System",
-      "district": "",
-      "city": "",
-      "amount": null,
-      "amount_display": "Refer tender",
-      "emd": 50000.0,
-      "fee": 1380.0,
-      "published_date": "09-10-2026 16:42:48",
-      "closing_date": "21-10-2026 11:00:00",
-      "status": "PUBLISHED",
-      "status_text": "Published",
-      "raw": {
-        "id": 89872,
-        "tenderNumber": "FD/2026-27/SE0011",
-        "title": "Selection of an Agency for providing Specialized Technical Resources to the PMU of HRMS2 Directorate",
-        "description": "Selection of an Agency for providing Specialized Technical Resources to the PMU of HRMS2 Directorate",
-        "category": "SERVICES",
-        "categoryText": "Services",
-        "ecv": null,
-        "deptId": 23,
-        "status": "PUBLISHED",
-        "statusText": "Published",
-        "nitId": 89933,
-        "publishedDate": "09-10-2026 16:42:48",
-        "tenderClosureDate": "21-10-2026 11:00:00",
-        "invitingStrategy": "OPEN",
-        "invitingStrategyText": "Open",
-        "deptName": "Finance Department",
-        "locationId": 76,
-        "locationName": "Human Resources Management System",
-        "ecvtenderYn": false,
-        "canViewAddendum": false,
-        "canViewCorrigendum": false,
-        "itemwise": false
       }
     },
     {
