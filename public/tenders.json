@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-10-25T11:23:43.404899+00:00",
+  "generated_at": "2026-10-25T11:31:24.634237+00:00",
   "source": "https://kppp.karnataka.gov.in",
   "last_full_at": null,
-  "count": 2854,
+  "count": 2853,
   "category_counts": {
     "WORKS": 1632,
     "GOODS": 509,
-    "SERVICES": 713
+    "SERVICES": 712
   },
   "tenders": [
     {
@@ -80440,48 +80440,6 @@
         "locationId": 7913,
         "locationName": "KSRTC Divisional Controller Office BANGALORE KBS",
         "ecvtenderYn": true,
-        "canViewAddendum": false,
-        "canViewCorrigendum": false,
-        "itemwise": false
-      }
-    },
-    {
-      "id": "90094",
-      "ref_no": "SSK/2026-27/SE0359/CALL-2",
-      "title": "KGBV Type-1 And Type-4 Manpower 2026-27",
-      "category": "SERVICES",
-      "department": "Samagra Shikshana Karnataka",
-      "location": "District Project Co-Ordinator Chikkodi",
-      "district": "",
-      "city": "",
-      "amount": null,
-      "amount_display": "Refer tender",
-      "emd": 68669.0,
-      "fee": 500.0,
-      "published_date": "13-10-2026 17:29:23",
-      "closing_date": "25-10-2026 17:00:00",
-      "status": "PUBLISHED",
-      "status_text": "Published",
-      "raw": {
-        "id": 90094,
-        "tenderNumber": "SSK/2026-27/SE0359/CALL-2",
-        "title": "KGBV Type-1 And Type-4 Manpower 2026-27",
-        "description": "KGBV Type-1 And Type-4 Manpower 2026-27",
-        "category": "SERVICES",
-        "categoryText": "Services",
-        "ecv": null,
-        "deptId": 4831,
-        "status": "PUBLISHED",
-        "statusText": "Published",
-        "nitId": 90155,
-        "publishedDate": "13-10-2026 17:29:23",
-        "tenderClosureDate": "25-10-2026 17:00:00",
-        "invitingStrategy": "OPEN",
-        "invitingStrategyText": "Open",
-        "deptName": "Samagra Shikshana Karnataka",
-        "locationId": 4860,
-        "locationName": "District Project Co-Ordinator Chikkodi",
-        "ecvtenderYn": false,
         "canViewAddendum": false,
         "canViewCorrigendum": false,
         "itemwise": false
