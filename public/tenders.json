@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-10-26T10:45:50.963560+00:00",
+  "generated_at": "2026-10-26T11:17:54.745276+00:00",
   "source": "https://kppp.karnataka.gov.in",
   "last_full_at": null,
-  "count": 2824,
+  "count": 2823,
   "category_counts": {
     "WORKS": 1617,
-    "GOODS": 496,
+    "GOODS": 495,
     "SERVICES": 711
   },
   "tenders": [
@@ -38757,49 +38757,6 @@
         "canViewAddendum": false,
         "canViewCorrigendum": false,
         "itemwise": false
-      }
-    },
-    {
-      "id": "63205",
-      "ref_no": "DHFWS/2026-27/IND2709/CALL-2",
-      "title": "TENDER FOR THE SUPPLY OF TO LAPTOP WENLOCK HOSPITAL",
-      "category": "GOODS",
-      "department": "Department Of Health And Family Welfare Services",
-      "location": "DHFWS District Surgeon Hospital Dakshina Kannada",
-      "district": "",
-      "city": "",
-      "amount": null,
-      "amount_display": "Refer tender",
-      "emd": 12500.0,
-      "fee": 500.0,
-      "published_date": "19-10-2026 10:29:05",
-      "closing_date": "26-10-2026 16:30:31",
-      "status": "PUBLISHED",
-      "status_text": "Published",
-      "raw": {
-        "id": 63205,
-        "tenderNumber": "DHFWS/2026-27/IND2709/CALL-2",
-        "title": "TENDER FOR THE SUPPLY OF TO LAPTOP WENLOCK HOSPITAL",
-        "description": "TENDER FOR THE SUPPLY OF TO LAPTOP WENLOCK HOSPITAL",
-        "category": "GOODS",
-        "categoryText": "Goods",
-        "ecv": null,
-        "deptId": 39,
-        "fileName": "SUP(3)54/2026-2027",
-        "status": "PUBLISHED",
-        "statusText": "Published",
-        "nitId": 63315,
-        "publishedDate": "19-10-2026 10:29:05",
-        "tenderClosureDate": "26-10-2026 16:30:31",
-        "invitingStrategy": "OPEN",
-        "invitingStrategyText": "Open",
-        "deptName": "Department Of Health And Family Welfare Services",
-        "locationId": 2961,
-        "locationName": "DHFWS District Surgeon Hospital Dakshina Kannada",
-        "ecvtenderYn": false,
-        "canViewAddendum": false,
-        "canViewCorrigendum": false,
-        "itemwise": true
       }
     },
     {
