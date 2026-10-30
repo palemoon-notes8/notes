@@ -205,8 +205,12 @@ def analyse(sym, d):
 def scan_loop(futs):
     while True:
         t0 = time.time()
-        rows, candles, errors = [], {}, 0
-        for sym, sid in futs.items():
+        rows, candles, errors, last_err = [], {}, 0, ""
+        for n, (sym, sid) in enumerate(futs.items(), 1):
+            if n % 10 == 0 and not state["board"]["updated"]:
+                with lock:
+                    state["board"]["status"] = f"First scan: {n}/{len(futs)} stocks, {errors} errors" \
+                        + (f" (last: {last_err})" if last_err else "")
             try:
                 d = fetch(sid) if SOURCE == "dhan" else fetch_yahoo(sym)
                 if d and len(d["close"]) > 20:
@@ -220,7 +224,8 @@ def scan_loop(futs):
                 break
             except Exception as e:                         # one bad symbol must not stop the scan
                 errors += 1
-                print(f"{sym}: {e}")
+                last_err = f"{sym}: {e}"[:150]
+                print(last_err)
             time.sleep(CALL_GAP if SOURCE == "dhan" else 0.35)
         if rows:
             bull = sorted([r for r in rows if r["score"] > 0], key=lambda r: -r["score"])
@@ -234,6 +239,9 @@ def scan_loop(futs):
                     "updated": datetime.now(IST).strftime("%H:%M:%S")}
                 state["candles"] = candles
                 state["levels"] = {r["sym"]: r for r in rows}
+        elif errors:
+            with lock:
+                state["board"]["status"] = f"No data: all {errors} requests failed. Last error: {last_err}"
         now = datetime.now(IST)
         live = now.weekday() < 5 and (9, 15) <= (now.hour, now.minute) <= (15, 35)
         time.sleep(max(5, (CYCLE_MARKET if live else CYCLE_OFF) - (time.time() - t0)))
