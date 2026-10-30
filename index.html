@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OB Board</title>
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+:root{--bg:#f7f8fa;--card:#fff;--fg:#14171f;--mut:#6b7280;--line:#e3e6eb;--up:#0a8f5a;--dn:#d0342c;--ob:#2f6fed}
+@media (prefers-color-scheme:dark){:root{--bg:#07090d;--card:#11151c;--fg:#e8eaee;--mut:#8b93a1;--line:#222834;--up:#2bc37f;--dn:#f0605a;--ob:#6a9bff}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.4 system-ui,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;padding:12px 16px;border-bottom:1px solid var(--line)}
+h1{font-size:16px;margin:0}
+.mut{color:var(--mut)}.up{color:var(--up)}.dn{color:var(--dn)}
+main{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:16px}
+@media (max-width:800px){main{grid-template-columns:1fr}}
+section{background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+h2{font-size:13px;margin:0;padding:10px 12px;border-bottom:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-weight:500;color:var(--mut);font-size:12px}
+th:first-child,td:first-child{text-align:left}
+tbody tr{cursor:pointer}tbody tr:hover,tbody tr:focus{background:color-mix(in srgb,var(--ob) 10%,transparent);outline:none}
+.wrap{overflow-x:auto}
+#chartBox{grid-column:1/-1;display:none}
+#chart{height:420px}
+#lv{padding:8px 12px;display:flex;flex-wrap:wrap;gap:6px 16px}
+</style>
+</head>
+<body>
+<header>
+  <h1>OB Board</h1>
+  <span id="status" class="mut">Loading…</span>
+  <span id="counts" class="mut"></span>
+</header>
+<main>
+  <section id="chartBox" aria-live="polite">
+    <h2 id="chartTitle"></h2>
+    <div id="lv"></div>
+    <div id="chart"></div>
+  </section>
+  <section><h2 class="up">Bullish — strongest first</h2><div class="wrap"><table><thead><tr><th>#</th><th>Stock</th><th>LTP</th><th>%</th><th>Score</th><th>OI %</th><th>Order block</th></tr></thead><tbody id="bull"></tbody></table></div></section>
+  <section><h2 class="dn">Bearish — strongest first</h2><div class="wrap"><table><thead><tr><th>#</th><th>Stock</th><th>LTP</th><th>%</th><th>Score</th><th>OI %</th><th>Order block</th></tr></thead><tbody id="bear"></tbody></table></div></section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const f = x => x == null ? "–" : Number(x).toFixed(2);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let chart, series, current, src;
+
+function rows(list) {
+  if (!list.length) return '<tr><td colspan="7" class="mut">No stocks yet</td></tr>';
+  return list.map((r, i) => `<tr tabindex="0" data-sym="${r.sym}">
+    <td>${i + 1}</td><td>${r.sym}</td><td>${f(r.ltp)}</td>
+    <td class="${r.chg >= 0 ? "up" : "dn"}">${r.chg >= 0 ? "+" : ""}${f(r.chg)}</td>
+    <td>${f(r.score)}</td><td>${src === "dhan" ? r.oi_chg : "–"}</td>
+    <td>${r.ob ? f(r.ob.bot) + "–" + f(r.ob.top) : "–"}</td></tr>`).join("");
+}
+
+async function loadBoard() {
+  try {
+    const b = await (await fetch("/api/board")).json();
+    src = b.source;
+    $("status").textContent = b.status === "ok" ? `Updated ${b.updated} · ${src === "dhan" ? "Dhan live" : "Yahoo (free, no OI, may lag)"}`
+      + (b.errors ? ` · ${b.errors} errors` : "") : b.status;
+    const c = b.counts || {};
+    $("counts").textContent = c.total ? `Bullish ${c.bullish} · Bearish ${c.bearish} · Choppy ${c.choppy}` : "";
+    $("bull").innerHTML = rows(b.bull); $("bear").innerHTML = rows(b.bear);
+    if (current) showChart(current, false);
+  } catch (e) { $("status").textContent = "Server not reachable — is server.py running?"; }
+}
+
+async function showChart(sym, scroll = true) {
+  const res = await fetch("/api/chart?sym=" + encodeURIComponent(sym));
+  if (!res.ok) return;
+  const { candles: d, levels: lv } = await res.json();
+  current = sym;
+  $("chartBox").style.display = "block";
+  $("chartTitle").textContent = `${sym} · ${f(lv.ltp)} (${lv.chg >= 0 ? "+" : ""}${f(lv.chg)}%)`;
+  $("lv").innerHTML = [["Resistance", lv.res], ["Order block", lv.ob && f(lv.ob.bot) + "–" + f(lv.ob.top)],
+    ["Support", lv.sup], ["Liquidity", lv.liq]].map(([k, v]) =>
+    `<span><span class="mut">${k}</span> <b>${typeof v === "number" ? f(v) : v || "–"}</b></span>`).join("");
+  if (!chart) {
+    chart = LightweightCharts.createChart($("chart"), {
+      autoSize: true, layout: { background: { color: "transparent" }, textColor: css("--mut") },
+      grid: { vertLines: { color: css("--line") }, horzLines: { color: css("--line") } },
+      timeScale: { timeVisible: true } });
+  }
+  if (series) chart.removeSeries(series);
+  series = chart.addCandlestickSeries({ upColor: css("--up"), downColor: css("--dn"),
+    wickUpColor: css("--up"), wickDownColor: css("--dn"), borderVisible: false });
+  series.setData(d.timestamp.map((t, i) => ({ time: t + 19800, open: d.open[i], high: d.high[i], low: d.low[i], close: d.close[i] })));
+  const line = (price, color, title, style = 0) => price != null &&
+    series.createPriceLine({ price, color, title, lineWidth: 1, lineStyle: style, axisLabelVisible: true });
+  if (lv.ob) { line(lv.ob.top, css("--ob"), "OB top"); line(lv.ob.bot, css("--ob"), "OB bottom"); }
+  line(lv.res, css("--dn"), "Resistance", 2); line(lv.sup, css("--up"), "Support", 2);
+  line(lv.liq, css("--mut"), "Liquidity", 1);
+  if (scroll) { chart.timeScale().fitContent(); $("chartBox").scrollIntoView({ behavior: "smooth" }); }
+}
+
+for (const id of ["bull", "bear"]) {
+  const tb = $(id);
+  tb.addEventListener("click", e => { const tr = e.target.closest("tr[data-sym]"); if (tr) showChart(tr.dataset.sym); });
+  tb.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.dataset.sym) showChart(e.target.dataset.sym); });
+}
+loadBoard(); setInterval(loadBoard, 30000);
+</script>
+</body>
+</html>
