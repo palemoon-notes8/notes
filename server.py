@@ -202,49 +202,70 @@ def analyse(sym, d):
     return row, start
 
 
+def scan_once(futs):
+    rows, candles, errors, last_err = [], {}, 0, ""
+    for n, (sym, sid) in enumerate(futs.items(), 1):
+        if n % 10 == 0 and not state["board"]["updated"]:
+            with lock:
+                state["board"]["status"] = f"First scan: {n}/{len(futs)} stocks, {errors} errors" \
+                    + (f" (last: {last_err})" if last_err else "")
+        try:
+            d = fetch(sid) if SOURCE == "dhan" else fetch_yahoo(sym)
+            if d and len(d["close"]) > 20:
+                row, start = analyse(sym, d)
+                rows.append(row)
+                candles[sym] = {k: v[start:] for k, v in d.items()}
+        except TokenError as e:
+            with lock:
+                state["board"]["status"] = str(e)
+            break
+        except Exception as e:                         # one bad symbol must not stop the scan
+            errors += 1
+            last_err = f"{sym}: {e}"[:150]
+            print(last_err)
+        time.sleep(CALL_GAP if SOURCE == "dhan" else 0.35)
+    if rows:
+        bull = sorted([r for r in rows if r["score"] > 0], key=lambda r: -r["score"])
+        bear = sorted([r for r in rows if r["score"] < 0], key=lambda r: r["score"])
+        with lock:
+            state["board"] = {
+                "bull": bull[:TOP_N], "bear": bear[:TOP_N], "errors": errors, "status": "ok",
+                "source": SOURCE,
+                "counts": {"bullish": len(bull), "bearish": len(bear),
+                           "choppy": len(rows) - len(bull) - len(bear), "total": len(rows)},
+                "updated": datetime.now(IST).strftime("%H:%M:%S")}
+            state["candles"] = candles
+            state["levels"] = {r["sym"]: r for r in rows}
+    elif errors:
+        with lock:
+            state["board"]["status"] = f"No data: all {errors} requests failed. Last error: {last_err}"
+
+
+def market_open():
+    now = datetime.now(IST)
+    return now.weekday() < 5 and (9, 15) <= (now.hour, now.minute) <= (15, 35)
+
+
 def scan_loop(futs):
     while True:
         t0 = time.time()
-        rows, candles, errors, last_err = [], {}, 0, ""
-        for n, (sym, sid) in enumerate(futs.items(), 1):
-            if n % 10 == 0 and not state["board"]["updated"]:
-                with lock:
-                    state["board"]["status"] = f"First scan: {n}/{len(futs)} stocks, {errors} errors" \
-                        + (f" (last: {last_err})" if last_err else "")
-            try:
-                d = fetch(sid) if SOURCE == "dhan" else fetch_yahoo(sym)
-                if d and len(d["close"]) > 20:
-                    row, start = analyse(sym, d)
-                    rows.append(row)
-                    candles[sym] = {k: v[start:] for k, v in d.items()}
-            except TokenError as e:
-                with lock:
-                    state["board"]["status"] = str(e)
-                time.sleep(60)
-                break
-            except Exception as e:                         # one bad symbol must not stop the scan
-                errors += 1
-                last_err = f"{sym}: {e}"[:150]
-                print(last_err)
-            time.sleep(CALL_GAP if SOURCE == "dhan" else 0.35)
-        if rows:
-            bull = sorted([r for r in rows if r["score"] > 0], key=lambda r: -r["score"])
-            bear = sorted([r for r in rows if r["score"] < 0], key=lambda r: r["score"])
-            with lock:
-                state["board"] = {
-                    "bull": bull[:TOP_N], "bear": bear[:TOP_N], "errors": errors, "status": "ok",
-                    "source": SOURCE,
-                    "counts": {"bullish": len(bull), "bearish": len(bear),
-                               "choppy": len(rows) - len(bull) - len(bear), "total": len(rows)},
-                    "updated": datetime.now(IST).strftime("%H:%M:%S")}
-                state["candles"] = candles
-                state["levels"] = {r["sym"]: r for r in rows}
-        elif errors:
-            with lock:
-                state["board"]["status"] = f"No data: all {errors} requests failed. Last error: {last_err}"
-        now = datetime.now(IST)
-        live = now.weekday() < 5 and (9, 15) <= (now.hour, now.minute) <= (15, 35)
-        time.sleep(max(5, (CYCLE_MARKET if live else CYCLE_OFF) - (time.time() - t0)))
+        scan_once(futs)
+        time.sleep(max(5, (CYCLE_MARKET if market_open() else CYCLE_OFF) - (time.time() - t0)))
+
+
+def write_static(outdir):
+    """Write board.json and charts.json for the hosted (GitHub) version."""
+    os.makedirs(outdir, exist_ok=True)
+    r2 = lambda v: [round(x, 2) for x in v]
+    with lock:
+        board = dict(state["board"], updated_date=datetime.now(IST).strftime("%d %b"))
+        charts = {s: {"candles": {k: (v if k == "timestamp" else r2(v)) for k, v in d.items() if k != "volume"},
+                      "levels": state["levels"][s]} for s, d in state["candles"].items()}
+    for name, obj in (("charts.json", charts), ("board.json", board)):   # board last: it signals new data
+        tmp = os.path.join(outdir, name + ".tmp")
+        with open(tmp, "w") as f:
+            json.dump(obj, f, separators=(",", ":"))
+        os.replace(tmp, os.path.join(outdir, name))
 
 
 # ---------- web ----------
@@ -280,7 +301,13 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    import sys
     futs = load_futures()
+    if len(sys.argv) == 3 and sys.argv[1] == "--once":      # used by the GitHub Action
+        scan_once(futs)
+        write_static(sys.argv[2])
+        print(state["board"]["status"], state["board"].get("counts"))
+        raise SystemExit(0 if state["board"]["status"] == "ok" else 1)
     print(f"Data source: {SOURCE}. {len(futs)} F&O stocks loaded. First scan takes ~1-2 minutes.")
     threading.Thread(target=scan_loop, args=(futs,), daemon=True).start()
     host, port = os.environ.get("HOST", "127.0.0.1"), int(os.environ.get("PORT", "8000"))

@@ -1,0 +1,50 @@
+name: OB Board data
+
+# Scans every ~2 min in market hours and force-pushes board.json + charts.json to the ob-data branch.
+# Each run lasts ~27 min; the half-hourly schedule chains runs through the session.
+on:
+  schedule:
+    - cron: "*/30 3-10 * * 1-5"     # 09:00-16:00 IST, Mon-Fri
+  push:
+    branches: [orderblock]
+  workflow_dispatch:
+
+concurrency:
+  group: ob-board
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: orderblock
+
+      - name: Scan and publish
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          publish() {
+            rm -rf pub && mkdir pub && cp out/board.json out/charts.json pub/
+            cd pub
+            git init -q -b ob-data
+            git -c user.name="ob-board bot" -c user.email="actions@users.noreply.github.com" add -A
+            git -c user.name="ob-board bot" -c user.email="actions@users.noreply.github.com" commit -qm "data $(TZ=Asia/Kolkata date +%H:%M)"
+            git push -qf "https://x-access-token:${TOKEN}@github.com/${REPO}.git" ob-data
+            cd ..
+          }
+          end=$(( $(date +%s) + 27 * 60 ))
+          while :; do
+            python3 server.py --once out || echo "scan reported a problem"
+            [ -f out/board.json ] && publish
+            hm=$((10#$(TZ=Asia/Kolkata date +%H%M)))
+            [ "$hm" -lt 910 ] || [ "$hm" -gt 1535 ] && break     # outside market hours: one scan only
+            [ "$(date +%s)" -ge "$end" ] && break
+            sleep 100
+          done
