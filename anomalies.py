@@ -1,6 +1,6 @@
 """Long-history test of documented calendar/behavioural effects on Indian markets (free daily data).
 Each rule says which days (or nights) to be long; returns are compared with buy-and-hold.
-Train = up to 2018, test = 2019 onward. Cost per round trip (futures, incl. slippage) is subtracted.
+Train = 2016-2021, test = 2022 onward. Cost per round trip (futures, incl. slippage) is subtracted.
 Usage: python anomalies.py <outdir>  -> anomalies.json
 """
 import json, math, os, sys, time
@@ -10,11 +10,11 @@ import research
 IST = research.IST
 ASSETS = {"NIFTY": "^NSEI", "BANKNIFTY": "^NSEBANK", "SENSEX": "^BSESN", "GOLD (GOLDBEES)": "GOLDBEES.NS"}
 COST = 0.0003           # 3 bps per round trip
-SPLIT = "2019-01-01"
+SPLIT = "2022-01-01"
 
 
 def load(sym):
-    rows = research.yahoo(sym, "1d", "max")
+    rows = research.yahoo(sym, "1d", "10y")      # "max" returns monthly bars
     out = []
     for t, o, h, l, c in rows:
         d = datetime.fromtimestamp(t, IST).date()
