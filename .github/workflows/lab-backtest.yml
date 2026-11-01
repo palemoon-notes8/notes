@@ -1,0 +1,59 @@
+name: Trade Lab backtest
+
+# Paper-trades every skill in trade-lab/skills/ on past 1-minute NIFTY 50 data and publishes
+# skills.json (+ the growing data archive in bars/) to the lab-data branch.
+# Runs when a skill or the engine changes, by hand (Actions tab), and - once this file is
+# on the default branch - every weekday after market close to add the new day.
+on:
+  push:
+    branches: [claude/exciting-gates-2x8m96]
+    paths: [trade-lab/**, .github/workflows/lab-backtest.yml]
+  workflow_dispatch:
+  schedule:
+    - cron: "17 11 * * 1-5"        # 16:47 IST, Mon-Fri
+
+concurrency:
+  group: lab-backtest
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    working-directory: trade-lab
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/exciting-gates-2x8m96
+
+      - name: Unit tests
+        run: python3 -m unittest discover tests
+
+      - name: Restore data archive
+        run: |
+          mkdir -p out
+          if git ls-remote --exit-code --heads origin lab-data >/dev/null; then
+            git fetch --depth 1 origin lab-data || exit 1        # never start a fresh archive by accident
+            (cd .. && git archive FETCH_HEAD bars) | tar -x -C out || echo "no archive yet"
+          fi
+          ls out/bars 2>/dev/null | wc -l
+
+      - name: Download new days and paper-trade every skill
+        run: python3 skilltest.py out
+
+      - name: Publish to lab-data
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          mkdir pub && cp -r out/skills.json out/bars pub/ && cd pub
+          git init -q -b lab-data
+          git -c user.name="trade-lab bot" -c user.email="actions@users.noreply.github.com" add -A
+          git -c user.name="trade-lab bot" -c user.email="actions@users.noreply.github.com" commit -qm "lab $(TZ=Asia/Kolkata date '+%d %b %H:%M')"
+          git push -qf "https://x-access-token:${TOKEN}@github.com/${REPO}.git" lab-data
