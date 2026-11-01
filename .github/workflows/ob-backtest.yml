@@ -4,7 +4,7 @@ name: OB Board backtest
 on:
   push:
     branches: [orderblock]
-    paths: [backtest.py, paper.py, server.py]
+    paths: [backtest.py, paper.py, server.py, compare.py]
 
 concurrency:
   group: ob-backtest
@@ -25,7 +25,8 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           python3 backtest.py out
-          mkdir pub && cp out/backtest.json pub/ && cd pub
+          python3 compare.py out
+          mkdir pub && cp out/backtest.json out/strategies.json pub/ && cd pub
           git init -q -b ob-backtest
           git -c user.name="ob-board bot" -c user.email="actions@users.noreply.github.com" add -A
           git -c user.name="ob-board bot" -c user.email="actions@users.noreply.github.com" commit -qm "backtest $(TZ=Asia/Kolkata date '+%d %b %H:%M')"
