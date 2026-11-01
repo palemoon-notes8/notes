@@ -1,7 +1,7 @@
 """Backtest of the paper-trading rules on free Yahoo 5-min data (~last 60 days).
 Replays the board every 15 minutes, takes trades with paper.py's rules (rules only, no AI),
 and writes backtest.json.  Usage: python backtest.py <outdir>
-Option P&L is estimated from the stock move (ATM delta 0.5); time decay is ignored.
+Option P&L is estimated from the stock move (ATM delta 0.5) minus paper.cost() for decay and spread.
 """
 import json, os, sys, time
 from datetime import datetime
@@ -64,7 +64,7 @@ def run(data, lots):
                 if px is not None:
                     move = (px - t["entry"]) * (1 if bull else -1)
                     t.update(exit=round(px, 2), why="stop" if stop else "target" if tgt else "time exit",
-                             pnl=round(move * paper.DELTA * t["qty"] - paper.CHARGES))
+                             pnl=round(move * paper.DELTA * t["qty"] - paper.cost(t)))
                     open_.remove(t); trades.append(t); day_pnl += t["pnl"]; eq += t["pnl"]
             # new entries every 15 min inside the entry window
             if k % STEP or not (paper.ENTRY_FROM <= hm <= paper.ENTRY_TO):
@@ -88,7 +88,7 @@ def run(data, lots):
             d = data[t["sym"]]
             last = max(i for i, x in enumerate(d["day"]) if x == day)
             move = (d["close"][last] - t["entry"]) * (1 if t["side"] == "CALL" else -1)
-            t.update(exit=round(d["close"][last], 2), why="time exit", pnl=round(move * paper.DELTA * t["qty"] - paper.CHARGES))
+            t.update(exit=round(d["close"][last], 2), why="time exit", pnl=round(move * paper.DELTA * t["qty"] - paper.cost(t)))
             trades.append(t); day_pnl += t["pnl"]; eq += t["pnl"]
         curve.append({"date": day.isoformat(), "equity": round(eq), "pnl": round(day_pnl)})
     return trades, curve

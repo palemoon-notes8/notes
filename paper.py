@@ -2,7 +2,7 @@
 No real orders. State is kept in trades.json next to board.json.
 
 Option P&L is ESTIMATED from the stock move (ATM delta ~0.5) while the data source has
-no option prices; time decay is not modelled, so results are optimistic.
+no option prices; time decay and spread are approximated by OPTION_COST_BPS.
 If ANTHROPIC_API_KEY is set, Claude approves or rejects each candidate; the risk guard
 below still applies to everything it approves.
 """
@@ -23,9 +23,14 @@ MAX_STOP_PCT = 2.0          # skip if the stop (beyond the order block) is wider
 TARGET_R = 2.0              # target = 2 x risk
 DELTA = 0.5                 # ATM option moves ~half the stock
 CHARGES = 60                # Rs per round trip (brokerage + taxes, rough)
+OPTION_COST_BPS = 7         # time decay + bid-ask spread of stock options, as basis points of stock value traded
 CANDIDATES = 5              # top N from each side of the board
 
 AI_MODEL = "claude-haiku-5-5"
+
+
+def cost(t):
+    return CHARGES + OPTION_COST_BPS / 1e4 * t["entry"] * t["qty"]
 
 
 def now_ist():
@@ -47,7 +52,7 @@ def note(st, msg):
 def close_trade(st, t, price, why, ts):
     move = (price - t["entry"]) * (1 if t["side"] == "CALL" else -1)
     t.update(exit=round(price, 2), exit_time=datetime.fromtimestamp(ts, IST).strftime("%H:%M"),
-             why=why, pnl=round(move * DELTA * t["qty"] - CHARGES))
+             why=why, pnl=round(move * DELTA * t["qty"] - cost(t)))
     st["open"].remove(t)
     st["closed"].append(t)
     note(st, f'EXIT {t["sym"]} {t["side"]} {why} P&L {t["pnl"]}')
