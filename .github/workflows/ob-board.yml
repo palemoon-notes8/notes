@@ -40,7 +40,7 @@ jobs:
             done
           fi
           publish() {
-            rm -rf pub && mkdir pub && cp out/board.json out/charts.json pub/ && for f in trades.json thursday.json; do [ ! -f out/$f ] || cp out/$f pub/; done
+            rm -rf pub && mkdir pub && cp out/board.json out/charts.json pub/ && for f in trades.json thursday.json timemachine.json; do [ ! -f out/$f ] || cp out/$f pub/; done
             cd pub
             git init -q -b ob-data
             git -c user.name="ob-board bot" -c user.email="actions@users.noreply.github.com" add -A
@@ -52,6 +52,7 @@ jobs:
           while :; do
             python3 server.py --once out || echo "scan reported a problem"
             python3 thursday.py out || echo "thursday test reported a problem"
+            python3 tm.py out || echo "time machine reported a problem"
             [ -f out/board.json ] && publish
             hm=$((10#$(TZ=Asia/Kolkata date +%H%M)))
             [ "$hm" -lt 910 ] || [ "$hm" -gt 1535 ] && break     # outside market hours: one scan only
