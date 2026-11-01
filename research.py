@@ -101,7 +101,7 @@ def build(name, rows, vix):
                 far = l0 if bull else h0
                 stop = far if stop_kind == "full" else (entry + far) / 2
                 risk = (entry - stop) if bull else (stop - entry)
-                if risk <= 0:
+                if risk < 0.002 * entry:               # stops tighter than 0.2% are noise; costs would dominate
                     continue
                 for exit_kind in ("target2R", "hold"):
                     tgt = entry + 2 * risk if bull else entry - 2 * risk
@@ -215,7 +215,8 @@ if __name__ == "__main__":
               "hypotheses_tested": sum(1 for _ in variants) * len(combos), "positive_on_train": len(found),
               "held_on_test": len(held), "top_train": top, "best_holdouts": [detail(x) for x in held[:8]],
               "baseline": [{"trade": v[0], "stop": v[1], "exit": v[2],
-                            "all": stats([r_mult(*r["out"][v], BPS) for r in recs if v in r["out"]])} for v in variants]}
+                            **{f"cost_{c}bps": stats([r_mult(*r["out"][v], c) for r in recs if v in r["out"]]) for c in (0, 3, 6)}}
+                           for v in variants]}
     with open(os.path.join(out, "research.json"), "w") as f:
         json.dump(result, f, separators=(",", ":"))
     print(json.dumps({k: result[k] for k in ("indices", "period", "train_until", "hypotheses_tested",
