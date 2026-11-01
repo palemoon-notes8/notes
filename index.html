@@ -42,6 +42,12 @@ tbody tr{cursor:pointer}tbody tr:hover,tbody tr:focus{background:color-mix(in sr
   </section>
   <section><h2 class="up">Bullish — strongest first</h2><div class="wrap"><table><thead><tr><th>#</th><th>Stock</th><th>LTP</th><th>%</th><th>Score</th><th>OI %</th><th>Order block</th></tr></thead><tbody id="bull"></tbody></table></div></section>
   <section><h2 class="dn">Bearish — strongest first</h2><div class="wrap"><table><thead><tr><th>#</th><th>Stock</th><th>LTP</th><th>%</th><th>Score</th><th>OI %</th><th>Order block</th></tr></thead><tbody id="bear"></tbody></table></div></section>
+  <section id="paper" style="grid-column:1/-1;display:none">
+    <h2>Paper trades — no real money</h2>
+    <div id="psum" style="padding:8px 12px;display:flex;flex-wrap:wrap;gap:6px 16px"></div>
+    <p class="mut" style="margin:0 12px 8px;font-size:12px">Option P&amp;L is estimated from the stock move (ATM, delta 0.5); time decay is not included, so real results would be lower.</p>
+    <div class="wrap"><table><thead><tr><th>Date</th><th>Stock</th><th>Side</th><th>Lots</th><th>Entry</th><th>Stop</th><th>Target</th><th>Exit</th><th>Result</th><th>P&amp;L ₹</th></tr></thead><tbody id="ptrades"></tbody></table></div>
+  </section>
 </main>
 <script>
 const $ = id => document.getElementById(id);
@@ -119,7 +125,27 @@ for (const id of ["bull", "bear"]) {
   tb.addEventListener("click", e => { const tr = e.target.closest("tr[data-sym]"); if (tr) showChart(tr.dataset.sym); });
   tb.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.dataset.sym) showChart(e.target.dataset.sym); });
 }
+async function loadPaper() {
+  try {
+    const r = await fetch(STATIC ? RAW + "trades.json" + bust() : "/trades.json");
+    if (!r.ok) return;
+    const p = await r.json(), m = p.summary || {};
+    const rs = n => (n < 0 ? "−₹" : "₹") + Math.abs(n).toLocaleString("en-IN");
+    const cls = n => n > 0 ? "up" : n < 0 ? "dn" : "";
+    $("psum").innerHTML = [["Equity", rs(m.equity)], ["Total P&L", `<span class="${cls(m.total_pnl)}">${rs(m.total_pnl)}</span>`],
+      ["Today", `<span class="${cls(m.day_pnl)}">${rs(m.day_pnl)}</span>`], ["Trades", m.trades],
+      ["Win rate", m.win_rate == null ? "–" : m.win_rate + "%"], ["Today's trades", `${m.trades_today}/5`],
+      ["Mode", m.mode], ["Updated", m.updated]].map(([k, v]) => `<span><span class="mut">${k}</span> <b>${v}</b></span>`).join("");
+    const row = (t, open) => `<tr><td>${t.date.slice(5)} ${t.time}</td><td>${t.sym}</td><td class="${t.side === "CALL" ? "up" : "dn"}">${t.side}</td>
+      <td>${t.lots}</td><td>${f(t.entry)}</td><td>${f(t.stop)}</td><td>${f(t.target)}</td><td>${open ? "–" : f(t.exit) + " " + t.exit_time}</td>
+      <td>${open ? "Open" : t.why}</td><td class="${cls(t.pnl)}">${open ? "–" : t.pnl.toLocaleString("en-IN")}</td></tr>`;
+    const list = [...p.open.map(t => row(t, true)), ...p.closed.slice().reverse().slice(0, 50).map(t => row(t, false))];
+    $("ptrades").innerHTML = list.join("") || '<tr><td colspan="10" class="mut">No paper trades yet. Trades are taken 9:30–2:30 on market days.</td></tr>';
+    $("paper").style.display = "block";
+  } catch (e) { /* no paper data yet */ }
+}
 loadBoard(); setInterval(loadBoard, 30000);
+loadPaper(); setInterval(loadPaper, 60000);
 </script>
 </body>
 </html>

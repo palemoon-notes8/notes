@@ -27,6 +27,7 @@ YAHOO = "https://query1.finance.yahoo.com/v8/finance/chart/{}?interval=5m&range=
 state = {"board": {"bull": [], "bear": [], "counts": {}, "updated": None,
                    "status": "starting", "errors": 0}, "candles": {}, "levels": {}}
 lock = threading.Lock()
+LOTS = {}               # symbol -> F&O lot size (from the scrip master)
 
 
 # ---------- instruments ----------
@@ -58,6 +59,10 @@ def load_futures():
             sym = row["SEM_TRADING_SYMBOL"].rsplit("-", 2)[0]   # "BAJAJ-AUTO-Nov2026-FUT"
             if sym not in best or exp < best[sym][0]:
                 best[sym] = (exp, row["SEM_SMST_SECURITY_ID"].strip())
+                try:
+                    LOTS[sym] = int(float(row.get("SEM_LOT_UNITS") or 0))
+                except ValueError:
+                    LOTS.pop(sym, None)
     if not best:
         raise RuntimeError("No FUTSTK contracts found in scrip master")
     return {s: v[1] for s, v in sorted(best.items())}
@@ -306,6 +311,9 @@ if __name__ == "__main__":
     if len(sys.argv) == 3 and sys.argv[1] == "--once":      # used by the GitHub Action
         scan_once(futs)
         write_static(sys.argv[2])
+        if state["board"]["status"] == "ok":
+            import paper
+            paper.step(state, LOTS, sys.argv[2])
         print(state["board"]["status"], state["board"].get("counts"))
         raise SystemExit(0 if state["board"]["status"] == "ok" else 1)
     print(f"Data source: {SOURCE}. {len(futs)} F&O stocks loaded. First scan takes ~1-2 minutes.")
