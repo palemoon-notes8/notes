@@ -25,7 +25,8 @@ SKILL = {
         "Watch 2 stocks: widest previous-day range %, closed above previous-day VWAP "
         "(approximation of the bot's pre-market score).",
         "From 09:30 to 15:00, on each 1-minute close: previous close at or below VWAP and this close above it (crossover).",
-        "Not consolidating: fewer than 4 of the last 5 closes within 0.5% of VWAP.",
+        "Not consolidating: fewer than 4 of the last 5 closes within 0.5% of VWAP. (On real 1-minute data this "
+        "blocks almost every crossover - a candle crossing VWAP is nearly always close to it.)",
         "Volume of this candle at least 1.5× the average of the previous 20 candles.",
         "RSI(14) between 40 and 70.",
         "Stop = entry - 2×ATR(14), target = entry + 4×ATR(14), both on 1-minute candles.",
@@ -53,7 +54,8 @@ class Skill:
         self.p = params
 
     def start_day(self, ctx):
-        self.watch = None
+        self.watch, self.reported = None, False
+        self.seen = {"crossovers": 0, "consolidating": 0, "low volume": 0, "RSI outside 40-70": 0}
 
     def on_bar(self, ctx):
         p = self.p
@@ -62,6 +64,11 @@ class Skill:
             self.watch = [s for _, s in sorted(ok, reverse=True)[:int(p["stocks"])]]
             ctx.note("Watching " + (", ".join(f"{s} (prev range {ctx.prev[s]['range_pct']:.2f}%)"
                                               for s in self.watch) or "nothing - no stock closed above VWAP yesterday"))
+        if ctx.start >= p["no_new_trade_after"] and not self.reported:
+            self.reported = True
+            n = self.seen
+            ctx.note(f"{n['crossovers']} VWAP crossovers today; blocked by: consolidating {n['consolidating']}, "
+                     f"low volume {n['low volume']}, RSI {n['RSI outside 40-70']} (one crossover can fail several)")
         orders = []
         for s in self.watch:
             bars = ctx.bars.get(s) or []
@@ -79,14 +86,16 @@ class Skill:
                 continue
             if not (bars[-2]["c"] <= vw[-2] and c > vw[-1]):
                 continue
+            self.seen["crossovers"] += 1
             near = sum(abs(b["c"] - v) / v * 100 <= p["consolidation_percent"] for b, v in zip(bars[-5:], vw[-5:]))
-            if near >= 4:
-                continue
             prev20 = [b["v"] for b in bars[-21:-1]]
             avg_v = sum(prev20) / len(prev20)
-            if avg_v <= 0 or bars[-1]["v"] < p["volume_surge"] * avg_v:
-                continue
-            if not (p["rsi_low"] <= r <= p["rsi_high"]):
+            fails = [k for k, bad in (("consolidating", near >= 4),
+                                      ("low volume", avg_v <= 0 or bars[-1]["v"] < p["volume_surge"] * avg_v),
+                                      ("RSI outside 40-70", not (p["rsi_low"] <= r <= p["rsi_high"]))) if bad]
+            for k in fails:
+                self.seen[k] += 1
+            if fails:
                 continue
             a = atr(bars)
             if not a:

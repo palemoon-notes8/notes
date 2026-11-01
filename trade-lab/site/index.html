@@ -127,7 +127,7 @@ function curve(points, capital) {
   const y = v => P.t + (hi - v) / span * (H - P.t - P.b);
   const pts = [[x(0), y(capital)]].concat(points.map((p, i) => [x(i), y(p.equity)]));
   const end = points[points.length - 1].equity, col = end >= capital ? "var(--up)" : "var(--dn)";
-  const tick = v => `<text x="${P.l - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="var(--mut)">${Math.round(v / 1000)}k</text>`;
+  const tick = v => `<text x="${P.l - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="var(--mut)">${(v / 1000).toFixed(span < 20000 ? 1 : 0)}k</text>`;
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Equity curve from ${rs(capital)} to ${rs(end)}">
     <line x1="${P.l}" x2="${W - P.r}" y1="${y(capital)}" y2="${y(capital)}" stroke="var(--line)" stroke-dasharray="4 4"/>
     ${tick(hi)}${tick(lo)}${Math.min(y(capital) - y(hi), y(lo) - y(capital)) > 16 ? tick(capital) : ""}
