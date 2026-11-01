@@ -46,12 +46,12 @@ tbody tr{cursor:pointer}tbody tr:hover,tbody tr:focus{background:color-mix(in sr
     <h2>Backtest — past data, same rules</h2>
     <div id="btsum" style="padding:8px 12px;display:flex;flex-wrap:wrap;gap:6px 16px"></div>
     <div id="btchart" style="height:220px"></div>
-    <p class="mut" style="margin:6px 12px 10px;font-size:12px">Free 5-min data (~60 days). Option P&amp;L estimated from the stock move (ATM, delta 0.5), time decay not included, so real results would be lower. Past results do not guarantee future results.</p>
+    <p class="mut" style="margin:6px 12px 10px;font-size:12px">Free 5-min data (~60 days). Option P&amp;L estimated from the stock move (ATM, delta 0.5) minus an estimated 0.07% decay + spread cost. Past results do not guarantee future results.</p>
   </section>
   <section id="paper" style="grid-column:1/-1;display:none">
     <h2>Paper trades — no real money</h2>
     <div id="psum" style="padding:8px 12px;display:flex;flex-wrap:wrap;gap:6px 16px"></div>
-    <p class="mut" style="margin:0 12px 8px;font-size:12px">Option P&amp;L is estimated from the stock move (ATM, delta 0.5); time decay is not included, so real results would be lower.</p>
+    <p class="mut" style="margin:0 12px 8px;font-size:12px">Option P&amp;L is estimated from the stock move (ATM, delta 0.5); time decay and spread are approximated as a cost of 0.07% of the stock value traded.</p>
     <div class="wrap"><table><thead><tr><th>Date</th><th>Stock</th><th>Side</th><th>Lots</th><th>Entry</th><th>Stop</th><th>Target</th><th>Exit</th><th>Result</th><th>P&amp;L ₹</th></tr></thead><tbody id="ptrades"></tbody></table></div>
   </section>
 </main>
