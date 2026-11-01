@@ -106,7 +106,8 @@ def check(full, entry, stop, k_now, bull):
     share = counts["target"] / hit * 100 if hit else 0
     need = 100 / 3                                  # a 2R target breaks even at 1 win in 3
     gap = share - need
-    verdict = ("Close to break-even" if abs(gap) < 5 else
+    verdict = ("Stop and target too far for today: the 15:15 price decides most replays" if hit < 0.4 * REPLAYS else
+               "Close to break-even" if abs(gap) < 5 else
                ("Leans toward the target" if gap > 0 else "Leans toward the stop") if abs(gap) < 15 else
                ("Strongly toward the target" if gap > 0 else "Strongly toward the stop"))
     return {"replays": REPLAYS, "seed": SEED, "sessions": len(full),
