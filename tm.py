@@ -30,8 +30,17 @@ def sessions(sym, cache):
         for t, o, h, l, c in zip(d["timestamp"], d["open"], d["high"], d["low"], d["close"]):
             dt = datetime.fromtimestamp(t, IST)
             days.setdefault(dt.date().isoformat(), {})[(dt.hour, dt.minute)] = (o, h, l, c)
-        cache[sym] = {day: [bars[s] for s in SLOTS] for day, bars in days.items()
-                      if all(s in bars for s in SLOTS)}
+        full = {}
+        for day, bars in days.items():
+            if sum(s in bars for s in SLOTS) < 70 or SLOTS[0] not in bars:
+                continue                                 # half days / big gaps are left out
+            seq, last = [], None
+            for s in SLOTS:                              # a few missing bars: flat bar at the last close
+                last = bars.get(s) or (last[3],) * 4
+                seq.append(last)
+            full[day] = seq
+        cache[sym] = full
+        print(sym, len(days), "days fetched,", len(full), "usable")
         time.sleep(0.35)
     return cache[sym]
 
@@ -118,6 +127,7 @@ def main(outdir):
         with open(cache_path) as f:
             c = json.load(f)
         cache = c["bars"] if c.get("date") == now.date().isoformat() else {}
+        cache = {k: v for k, v in cache.items() if len(v) >= 20}  # retry symbols that came back short
     except (OSError, ValueError):
         cache = {}
     k_now = max((k for k, s in enumerate(SLOTS) if s <= (now.hour, now.minute)), default=0)
