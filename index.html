@@ -48,6 +48,12 @@ tbody tr{cursor:pointer}tbody tr:hover,tbody tr:focus{background:color-mix(in sr
     <div id="btchart" style="height:220px"></div>
     <p class="mut" style="margin:6px 12px 10px;font-size:12px">Free 5-min data (~60 days). Option P&amp;L estimated from the stock move (ATM, delta 0.5) minus an estimated 0.07% decay + spread cost. Past results do not guarantee future results.</p>
   </section>
+  <section id="th" style="grid-column:1/-1;display:none">
+    <h2>Live test #1 — Thursday reversal (paper, no real money)</h2>
+    <div id="thsum" style="padding:8px 12px;display:flex;flex-wrap:wrap;gap:6px 16px"></div>
+    <p class="mut" style="margin:0 12px 8px;font-size:12px">Rule: on Thursday, if yesterday's India VIX was above the threshold, at 10:15 buy the ATM option opposite to the first-hour move; stop beyond the first-hour high/low; exit 15:15. P&amp;L per 1 lot is estimated (delta 0.5, decay + spread cost). Use next week's expiry, not same-day.</p>
+    <div class="wrap"><table><thead><tr><th>Date</th><th>Index</th><th>Option</th><th>Entry (index)</th><th>Stop</th><th>Exit</th><th>Result</th><th>R</th><th>P&amp;L ₹ / lot</th></tr></thead><tbody id="throws"></tbody></table></div>
+  </section>
   <section id="rs" style="grid-column:1/-1;display:none">
     <h2>Index option-buying research — patterns that held on unseen data</h2>
     <p id="rsnote" class="mut" style="margin:8px 12px;font-size:12px"></p>
@@ -216,6 +222,25 @@ async function loadResearch() {
   } catch (e) { /* not run yet */ }
 }
 loadResearch();
+
+async function loadThursday() {
+  try {
+    const r = await fetch(STATIC ? RAW + "thursday.json" + bust() : "/thursday.json");
+    if (!r.ok) return;
+    const j = await r.json(), m = j.summary || {};
+    const rs = n => (n < 0 ? "−₹" : "₹") + Math.abs(n).toLocaleString("en-IN");
+    $("thsum").innerHTML = [["Status", j.status], ["Trades closed", m.trades], ["Wins", m.wins], ["Total", `<span class="${m.total_rs >= 0 ? "up" : "dn"}">${rs(m.total_rs)} (${m.total_r}R)</span>`],
+      ["Thursdays seen", j.days.length], ["Updated", m.updated]].map(([k, v]) => `<span><span class="mut">${k}</span> <b>${v}</b></span>`).join("");
+    $("throws").innerHTML = j.trades.slice().reverse().map(t => t.status === "skipped"
+      ? `<tr><td>${t.date}</td><td>${t.index}</td><td colspan="7" class="mut">Skipped: ${t.why}</td></tr>`
+      : `<tr><td>${t.date}</td><td>${t.index}</td><td class="${t.side === "CALL" ? "up" : "dn"}">${t.side}</td><td>${f(t.entry)}</td><td>${f(t.stop)}</td>
+         <td>${t.exit ? f(t.exit) + " " + t.exit_time : "live " + f(t.last)}</td><td>${t.status}</td><td>${t.pnl_r ?? "–"}</td>
+         <td class="${t.pnl_rs > 0 ? "up" : "dn"}">${t.pnl_rs != null ? t.pnl_rs.toLocaleString("en-IN") : "–"}</td></tr>`).join("")
+      || '<tr><td colspan="9" class="mut">No trades yet — first chance is Thursday, 10:15.</td></tr>';
+    $("th").style.display = "block";
+  } catch (e) { /* not started */ }
+}
+loadThursday(); setInterval(loadThursday, 60000);
 </script>
 </body>
 </html>
