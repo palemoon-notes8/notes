@@ -48,6 +48,12 @@ tbody tr{cursor:pointer}tbody tr:hover,tbody tr:focus{background:color-mix(in sr
     <div id="btchart" style="height:220px"></div>
     <p class="mut" style="margin:6px 12px 10px;font-size:12px">Free 5-min data (~60 days). Option P&amp;L estimated from the stock move (ATM, delta 0.5) minus an estimated 0.07% decay + spread cost. Past results do not guarantee future results.</p>
   </section>
+  <section id="rs" style="grid-column:1/-1;display:none">
+    <h2>Index option-buying research — patterns that held on unseen data</h2>
+    <p id="rsnote" class="mut" style="margin:8px 12px;font-size:12px"></p>
+    <div class="wrap"><table><thead><tr><th>Pattern (at 10:15)</th><th>Trade</th><th>Train trades</th><th>Train avg R</th><th>Test trades</th><th>Test avg R</th><th>Test win %</th><th>Test PF</th></tr></thead><tbody id="rsrows"></tbody></table></div>
+    <p class="mut" style="margin:6px 12px 10px;font-size:12px">R = planned loss per trade (1R). Avg R 0.4 means +0.4 × your risk per trade on average. "Reversal" = buy the option opposite to the first-hour move, stop beyond the first-hour extreme, exit 15:15. Small samples: candidates for live paper testing, not proven.</p>
+  </section>
   <section id="cmp" style="grid-column:1/-1;display:none">
     <h2>Strategy comparison — same data, same risk rules, realistic costs</h2>
     <p id="cmpnote" class="mut" style="margin:8px 12px;font-size:12px"></p>
@@ -196,6 +202,20 @@ async function loadCompare() {
   } catch (e) { /* not run yet */ }
 }
 loadCompare();
+
+async function loadResearch() {
+  try {
+    const r = await fetch(STATIC ? "https://raw.githubusercontent.com/palemoon-notes8/notes/ob-research/research.json" + bust() : "/research.json");
+    if (!r.ok) return;
+    const j = await r.json(), s = x => x ? x.avg_R : "–";
+    $("rsnote").textContent = `${j.indices.join(", ")} · ${j.period[0]} → ${j.period[1]} · searched on data before ${j.train_until}, judged after it · ${j.hypotheses_tested} patterns tested, ${j.positive_on_train} positive on train, ${j.held_on_test} still positive on test · run ${j.made}`;
+    $("rsrows").innerHTML = j.best_holdouts.map(x => `<tr><td>${x.rule}</td><td>${x.trade}, ${x.stop} stop, ${x.exit}</td>
+      <td>${x.train.n}</td><td>${s(x.train)}</td><td>${x.test.n}</td><td class="${x.test.avg_R > 0 ? "up" : "dn"}">${s(x.test)}</td>
+      <td>${x.test.win}</td><td>${x.test.pf ?? "–"}</td></tr>`).join("") || '<tr><td colspan="8" class="mut">No pattern held on unseen data.</td></tr>';
+    $("rs").style.display = "block";
+  } catch (e) { /* not run yet */ }
+}
+loadResearch();
 </script>
 </body>
 </html>
