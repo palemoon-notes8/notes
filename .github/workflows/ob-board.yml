@@ -29,9 +29,16 @@ jobs:
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
+          # Carry the paper-trading record forward; abort rather than start a fresh record if it can't be read
+          mkdir -p out
+          if git ls-remote --exit-code --heads origin ob-data >/dev/null; then
+            git fetch --depth 1 origin ob-data || exit 1
+            git show FETCH_HEAD:trades.json > out/trades.json 2>/dev/null || rm -f out/trades.json
+          fi
           publish() {
-            rm -rf pub && mkdir pub && cp out/board.json out/charts.json pub/
+            rm -rf pub && mkdir pub && cp out/board.json out/charts.json pub/ && { [ ! -f out/trades.json ] || cp out/trades.json pub/; }
             cd pub
             git init -q -b ob-data
             git -c user.name="ob-board bot" -c user.email="actions@users.noreply.github.com" add -A
