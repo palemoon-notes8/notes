@@ -1,0 +1,32 @@
+name: OB Board backtest
+
+# Re-runs the backtest whenever the strategy code changes; results go to the ob-backtest branch.
+on:
+  push:
+    branches: [orderblock]
+    paths: [backtest.py, paper.py, server.py]
+
+concurrency:
+  group: ob-backtest
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run backtest and publish
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          python3 backtest.py out
+          mkdir pub && cp out/backtest.json pub/ && cd pub
+          git init -q -b ob-backtest
+          git -c user.name="ob-board bot" -c user.email="actions@users.noreply.github.com" add -A
+          git -c user.name="ob-board bot" -c user.email="actions@users.noreply.github.com" commit -qm "backtest $(TZ=Asia/Kolkata date '+%d %b %H:%M')"
+          git push -qf "https://x-access-token:${TOKEN}@github.com/${REPO}.git" ob-backtest
