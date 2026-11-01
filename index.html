@@ -48,6 +48,11 @@ tbody tr{cursor:pointer}tbody tr:hover,tbody tr:focus{background:color-mix(in sr
     <div id="btchart" style="height:220px"></div>
     <p class="mut" style="margin:6px 12px 10px;font-size:12px">Free 5-min data (~60 days). Option P&amp;L estimated from the stock move (ATM, delta 0.5) minus an estimated 0.07% decay + spread cost. Past results do not guarantee future results.</p>
   </section>
+  <section id="cmp" style="grid-column:1/-1;display:none">
+    <h2>Strategy comparison — same data, same risk rules, realistic costs</h2>
+    <p id="cmpnote" class="mut" style="margin:8px 12px;font-size:12px"></p>
+    <div class="wrap"><table><thead><tr><th>Strategy</th><th>Instrument</th><th>Trades</th><th>End capital</th><th>P&amp;L</th><th>Win %</th><th>Profit factor</th><th>Max drawdown</th><th>Green days</th></tr></thead><tbody id="cmprows"></tbody></table></div>
+  </section>
   <section id="paper" style="grid-column:1/-1;display:none">
     <h2>Paper trades — no real money</h2>
     <div id="psum" style="padding:8px 12px;display:flex;flex-wrap:wrap;gap:6px 16px"></div>
@@ -175,6 +180,22 @@ async function loadBacktest() {
   } catch (e) { /* no backtest yet */ }
 }
 loadBacktest();
+
+async function loadCompare() {
+  try {
+    const r = await fetch(STATIC ? "https://raw.githubusercontent.com/palemoon-notes8/notes/ob-backtest/strategies.json" + bust() : "/strategies.json");
+    if (!r.ok) return;
+    const j = await r.json();
+    const rs = n => (n < 0 ? "−₹" : "₹") + Math.abs(n).toLocaleString("en-IN");
+    $("cmpnote").textContent = `${j.start} → ${j.end}, ${j.stocks} F&O stocks, start ₹1,00,000. Profit factor above 1 = profitable. Futures need margin (~20% of contract value). Run ${j.made}.`;
+    $("cmprows").innerHTML = j.rows.slice().sort((a, b) => b.total_pnl - a.total_pnl).map(x => `<tr>
+      <td>${x.strategy}</td><td>${x.instrument}</td><td>${x.trades}</td><td>${rs(x.final_equity)}</td>
+      <td class="${x.total_pnl > 0 ? "up" : "dn"}">${rs(x.total_pnl)}</td><td>${x.win_rate ?? "–"}</td>
+      <td>${x.profit_factor ?? "–"}</td><td>${rs(-x.max_drawdown)}</td><td>${x.green_days}/${x.days}</td></tr>`).join("");
+    $("cmp").style.display = "block";
+  } catch (e) { /* not run yet */ }
+}
+loadCompare();
 </script>
 </body>
 </html>
