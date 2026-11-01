@@ -4,7 +4,7 @@ name: OB index option research
 on:
   push:
     branches: [orderblock]
-    paths: [research.py, anomalies.py]
+    paths: [research.py, anomalies.py, scalp.py]
 
 concurrency:
   group: ob-research
@@ -26,7 +26,8 @@ jobs:
         run: |
           python3 research.py out | tee out.log
           python3 anomalies.py out | tee -a out.log
-          mkdir pub && cp out/research.json out/anomalies.json out.log pub/ && cd pub
+          python3 scalp.py out | tee -a out.log
+          mkdir pub && cp out/research.json out/anomalies.json out/scalp.json out.log pub/ && cd pub
           git init -q -b ob-research
           git -c user.name="ob-board bot" -c user.email="actions@users.noreply.github.com" add -A
           git -c user.name="ob-board bot" -c user.email="actions@users.noreply.github.com" commit -qm "research $(TZ=Asia/Kolkata date '+%d %b %H:%M')"
