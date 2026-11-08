@@ -2,7 +2,7 @@
 // Makes TenderOne installable and quick to open: the page itself and its scripts, styles and icons
 // are kept on the phone. Tender data is not cached here (app.js keeps its own copy), and /api/*
 // always goes to the network.
-const CACHE = 'tenderone-shell-v2';
+const CACHE = 'tenderone-shell-v3';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(['/', '/manifest.json', '/icons/icon-192.png'])).then(() => self.skipWaiting()));

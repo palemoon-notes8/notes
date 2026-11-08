@@ -13,6 +13,12 @@ on:
 
 permissions:
   contents: write
+  # Lets the job prove to the website's KPPP relay that it is this repository (see kppp_polite.py).
+  id-token: write
+
+# KPPP stopped answering GitHub's servers, so KPPP requests go through the website (worker/index.js).
+env:
+  KPPP_RELAY: https://tenderone.online
 
 concurrency:
   group: collect-history

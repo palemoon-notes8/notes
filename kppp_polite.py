@@ -11,6 +11,8 @@ refusing for a while. Every collector uses make_session() from here, which:
   at once without contacting KPPP, and the next scheduled run tries again (a struggling KPPP is left alone).
 """
 
+import base64
+import json
 import os
 import threading
 import time
@@ -72,6 +74,45 @@ def _fine():
         _pause = _pause / 2 if _pause > 30 else 0.0
 
 
+KPPP_ORIGIN = "https://kppp.karnataka.gov.in"
+# KPPP stopped answering GitHub's servers, so on GitHub every KPPP request goes through the website's
+# Worker (worker/index.js, /kppp-relay), which KPPP still answers. The Worker only accepts this repository's
+# GitHub Actions, proven by a short-lived GitHub OIDC token (the workflow needs `id-token: write`).
+RELAY = os.getenv("KPPP_RELAY", "").strip().rstrip("/")
+RELAY_AUDIENCE = "tenderone-kppp-relay"
+_token_lock = threading.Lock()
+_token = None
+_token_exp = 0.0
+
+
+def _relay_token():
+    """A GitHub OIDC token for the relay, renewed a minute before it expires."""
+    global _token, _token_exp
+    with _token_lock:
+        if _token and time.time() < _token_exp - 60:
+            return _token
+        url = os.environ.get("ACTIONS_ID_TOKEN_REQUEST_URL")
+        bearer = os.environ.get("ACTIONS_ID_TOKEN_REQUEST_TOKEN")
+        if not url or not bearer:
+            raise RuntimeError("KPPP_RELAY is set but this job cannot get a GitHub OIDC token "
+                               "(add `id-token: write` to the workflow's permissions)")
+        response = requests.get(url, params={"audience": RELAY_AUDIENCE},
+                                headers={"Authorization": f"bearer {bearer}"}, timeout=30)
+        response.raise_for_status()
+        _token = response.json()["value"]
+        claims = json.loads(base64.urlsafe_b64decode(_token.split(".")[1] + "==="))
+        _token_exp = float(claims.get("exp") or time.time() + 300)
+        return _token
+
+
+def _via_relay(request):
+    if RELAY and request.url.startswith(KPPP_ORIGIN + "/"):
+        request.url = RELAY + "/kppp-relay" + request.url[len(KPPP_ORIGIN):]
+        request.headers.pop("Cookie", None)
+    if RELAY and request.url.startswith(RELAY + "/kppp-relay/"):
+        request.headers["X-Relay-Token"] = _relay_token()
+
+
 class PoliteAdapter(HTTPAdapter):
     def send(self, request, **kwargs):
         for attempt in range(1, ATTEMPTS + 1):
@@ -79,6 +120,7 @@ class PoliteAdapter(HTTPAdapter):
                 raise KpppUnavailable("KPPP is not answering; not asking again in this run", request=request)
             _wait_turn()
             try:
+                _via_relay(request)  # each attempt: a retry may come minutes later, after the token expired
                 response = super().send(request, **kwargs)
             except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
                 _busy(exc.__class__.__name__)

@@ -34,6 +34,10 @@ Cloudflare builds and deploys the Worker (configured in `wrangler.jsonc`) from t
 To run locally: `npm ci && npx wrangler dev`.
 
 
+## KPPP relay
+
+Since 7 Nov 2026 KPPP no longer answers GitHub's servers (connections time out), while it still answers Cloudflare. So on GitHub every collector sends its KPPP requests through the website: `kppp_polite.py` rewrites `https://kppp.karnataka.gov.in/...` to `https://tenderone.online/kppp-relay/...` when `KPPP_RELAY` is set (it is, in each collector workflow), and the Worker passes them on to KPPP. No password or secret is involved: the workflows have `id-token: write`, each request carries a short-lived token signed by GitHub, and the Worker only accepts tokens issued to this repository's own Actions. Anyone else gets the same 404 as the rest of the site. Without `KPPP_RELAY` (e.g. running a collector on your own computer) requests go to KPPP directly.
+
 ## Being gentle with KPPP
 
 KPPP blocks callers that send too many requests too quickly (HTTP 503 for several minutes). Every collector connects through `kppp_polite.py`: at most one request every `KPPP_MIN_INTERVAL` seconds (1.5 by default, 4 for each of the four history jobs), and when KPPP says it is busy or does not answer, all requests pause for 30 seconds, doubling up to 5 minutes, instead of retrying at once. The tender list also pauses `KPPP_PAGE_DELAY` seconds (4) between pages.

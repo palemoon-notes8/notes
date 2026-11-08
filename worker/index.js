@@ -505,6 +505,89 @@ async function systemHealth(ctx, env = {}) {
   }, 200, 'public, max-age=60, s-maxage=60');
 }
 
+// ---------- KPPP relay for the GitHub collectors ----------
+// KPPP stopped answering GitHub's servers (Nov 2026) but still answers Cloudflare, so the collectors send
+// their KPPP requests here and this Worker passes them on. Only this repository's own GitHub Actions may use
+// it: each request carries a GitHub-signed OIDC token (no password or secret to set up), checked below.
+// Everyone else gets the same plain 404 as the rest of the site.
+const RELAY_PREFIX = '/kppp-relay';
+const RELAY_AUDIENCE = 'tenderone-kppp-relay';
+const RELAY_REPOSITORY = 'palemoon-notes8/notes';
+const RELAY_OWNER_ID = '334524999';
+const OIDC_ISSUER = 'https://token.actions.githubusercontent.com';
+const RELAY_PASS_HEADERS = ['accept', 'content-type', 'post', 'authorization'];
+const RELAY_BACK_HEADERS = ['content-type', 'content-disposition', 'x-total-count', 'retry-after'];
+let jwksKeys = null;      // GitHub's signing keys, per Worker instance
+let jwksAt = 0;
+const goodTokens = new Map(); // token -> expiry (ms), so each token is checked once
+
+const b64url = (text) => Uint8Array.from(atob(text.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((text.length + 3) % 4)), (c) => c.charCodeAt(0));
+
+async function githubKey(kid) {
+  if (!jwksKeys || Date.now() - jwksAt > 3600000 || !jwksKeys.some((k) => k.kid === kid)) {
+    const response = await fetch(`${OIDC_ISSUER}/.well-known/jwks`);
+    if (!response.ok) throw new Error(`GitHub keys: HTTP ${response.status}`);
+    jwksKeys = (await response.json()).keys || [];
+    jwksAt = Date.now();
+  }
+  const jwk = jwksKeys.find((k) => k.kid === kid);
+  if (!jwk) throw new Error('unknown key');
+  return crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
+}
+
+async function relayAllowed(request) {
+  const token = request.headers.get('X-Relay-Token') || '';
+  const now = Date.now();
+  if (goodTokens.has(token)) {
+    if (goodTokens.get(token) > now) return true;
+    goodTokens.delete(token);
+  }
+  try {
+    const [head, body, sig] = token.split('.');
+    const header = JSON.parse(new TextDecoder().decode(b64url(head)));
+    const claims = JSON.parse(new TextDecoder().decode(b64url(body)));
+    if (header.alg !== 'RS256') return false;
+    const ok = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', await githubKey(header.kid), b64url(sig), new TextEncoder().encode(`${head}.${body}`));
+    const aud = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
+    if (!ok || claims.iss !== OIDC_ISSUER || !aud.includes(RELAY_AUDIENCE)) return false;
+    if (claims.repository !== RELAY_REPOSITORY || String(claims.repository_owner_id) !== RELAY_OWNER_ID) return false;
+    if (!(claims.exp * 1000 > now) || (claims.nbf && claims.nbf * 1000 > now + 60000)) return false;
+    if (goodTokens.size > 200) goodTokens.clear();
+    goodTokens.set(token, claims.exp * 1000);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function kpppRelay(request, url) {
+  const path = url.pathname.slice(RELAY_PREFIX.length);
+  if (!path.startsWith('/supplier-registration-service/') || !['GET', 'POST'].includes(request.method)) return notFound();
+  const headers = { Origin: KPPP_BASE, Referer: KPPP_BASE + '/', 'User-Agent': USER_AGENT };
+  for (const name of RELAY_PASS_HEADERS) {
+    const value = request.headers.get(name);
+    if (value) headers[name] = value;
+  }
+  let upstream;
+  try {
+    upstream = await fetch(KPPP_BASE + path + url.search, {
+      method: request.method,
+      headers,
+      body: request.method === 'POST' ? await request.arrayBuffer() : undefined,
+      redirect: 'manual'
+    });
+  } catch (error) {
+    // 504 makes the collector pause and retry, the same as when KPPP itself is busy.
+    return new Response(`KPPP did not answer the relay: ${String(error).slice(0, 200)}`, { status: 504, headers: { 'X-Relay': 'tenderone' } });
+  }
+  const back = new Headers({ 'Cache-Control': 'no-store', 'X-Relay': 'tenderone' });
+  for (const name of RELAY_BACK_HEADERS) {
+    const value = upstream.headers.get(name);
+    if (value) back.set(name, value);
+  }
+  return new Response(upstream.body, { status: upstream.status, headers: back });
+}
+
 // ---------- Private site: one password, remembered on each device for a year ----------
 // Only a hash of a hash of the password is stored here, so the code being public does not reveal it.
 const SESSION_CHECK = '957ec036a47b5f8c5ee58bd189b81bb1e31bcdb6b3abebe77f55adedbfd1ad9b';
@@ -674,6 +757,9 @@ export default {
     if ((await sha256Hex(url.pathname)) === LOGIN_PATH_HASH) {
       if (request.method === 'POST') return handleLogin(request);
       return (await signedIn(request)) ? Response.redirect(new URL('/', url).toString(), 302) : loginPage();
+    }
+    if (url.pathname.startsWith(RELAY_PREFIX + '/')) {
+      return (await relayAllowed(request)) ? kpppRelay(request, url) : notFound();
     }
     if (url.pathname === '/logout') {
       return new Response(null, { status: 303, headers: { Location: '/', 'Set-Cookie': `${SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax` } });

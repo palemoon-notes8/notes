@@ -416,6 +416,23 @@ def award_path(nit):
     return AWARDS / f"{nit}.json"
 
 
+def write_if_changed(path, body):
+    """Write {"generated_at": now, **body}, but leave the file alone when only the time would change.
+
+    Otherwise a run that got nothing from KPPP still commits a new timestamp, and the site looks fresh.
+    """
+    try:
+        old = json.loads(path.read_text(encoding="utf-8"))
+        old.pop("generated_at", None)
+        if old == json.loads(json.dumps(body, ensure_ascii=False)):
+            print(f"{path.name}: no changes", flush=True)
+            return
+    except Exception:
+        pass
+    path.write_text(json.dumps({"generated_at": datetime.now(timezone.utc).isoformat(), **body},
+                               ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+
+
 def main():
     session = make_session()
     cache = json.loads(CACHE.read_text(encoding="utf-8")) if CACHE.exists() else {}
@@ -527,18 +544,16 @@ def main():
             items_by_nit.setdefault(nit, items)
 
     results = sorted(cache.values(), key=lambda r: r.get("awarded") or r.get("closed") or "", reverse=True)
-    TARGET.write_text(json.dumps({
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+    write_if_changed(TARGET, {
         "count": len(results),
         "results": results,
-    }, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    })
     rates = build_rates(cache, items_by_nit)
-    RATES.write_text(json.dumps({
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+    write_if_changed(RATES, {
         "tenders": sum(1 for nit in items_by_nit if (cache.get(nit) or {}).get("cat") == "WORKS"),
         # The tender page only reads the winning-rate spread and how many tenders it comes from.
         "items": {key: {"l1": g["l1"], "tenders": g["tenders"]} for key, g in rates.items()},
-    }, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    })
     with_bids = sum(1 for r in results if r.get("bidders"))
     pages = sum(1 for _ in AWARDS.glob("*.json"))
     print(f"Done {ok} jobs, {failed} failed. {len(results)} results, {with_bids} with bidder amounts "
