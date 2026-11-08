@@ -304,6 +304,8 @@
     const stale = S.generatedAt && Date.now() - Date.parse(S.generatedAt) > 3 * 3600000;
     $('liveText').textContent = when ? `${fmtInt(S.all.length)} live tenders · updated ${when}` : `${fmtInt(S.all.length)} live tenders`;
     $('livePill').classList.toggle('stale', Boolean(stale));
+    $('staleBanner').hidden = !stale;
+    if (stale) $('staleAgo').textContent = when;
     if (S.generatedAt) $('footData').textContent = `Source: KPPP · last updated ${dateFmt.format(new Date(S.generatedAt))}`;
   }
 
