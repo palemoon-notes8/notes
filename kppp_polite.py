@@ -22,7 +22,8 @@ from requests.adapters import HTTPAdapter
 
 MIN_INTERVAL = float(os.getenv("KPPP_MIN_INTERVAL", "1.5"))
 ATTEMPTS = int(os.getenv("KPPP_ATTEMPTS", "6"))
-BUSY = {429, 502, 503, 504}
+# 520-524 and 530: Cloudflare (the relay) could not reach KPPP.
+BUSY = {429, 502, 503, 504, 520, 521, 522, 523, 524, 530}
 GIVE_UP = int(os.getenv("KPPP_GIVE_UP", "3"))
 
 

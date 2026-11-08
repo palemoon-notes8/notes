@@ -16,6 +16,9 @@
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Prefs"] }],
   // Cloudflare's built-in AI for tender summaries (free daily allowance; see tenderSummary in worker/index.js).
   "ai": { "binding": "AI" },
+  // Run the Worker in Mumbai: KPPP only answers connections from India, and the GitHub collectors reach
+  // KPPP through this Worker (/kppp-relay in worker/index.js). Users are in India too.
+  "placement": { "mode": "targeted", "region": "aws:ap-south-1" },
   "observability": {
     "enabled": true
   }
