@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-08T19:16:35.526498+00:00",
+  "generated_at": "2026-11-08T19:49:29.493536+00:00",
   "source": "https://kppp.karnataka.gov.in",
   "last_full_at": null,
   "count": 6387,
@@ -1075,8 +1075,8 @@
       "city": "",
       "amount": null,
       "amount_display": "Refer tender",
-      "emd": null,
-      "fee": null,
+      "emd": 117350.0,
+      "fee": 1470.0,
       "published_date": "08-11-2026 18:07:31",
       "closing_date": "19-11-2026 17:00:00",
       "status": "PUBLISHED",
