@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-10T15:39:00.844676+00:00",
+  "generated_at": "2026-11-10T16:10:10.809862+00:00",
   "source": "https://kppp.karnataka.gov.in",
   "last_full_at": null,
   "count": 6461,
@@ -218,7 +218,7 @@
         "locationId": 2276,
         "locationName": "DMA City Municipal Council Chitraduga",
         "ecvtenderYn": true,
-        "canViewAddendum": false,
+        "canViewAddendum": true,
         "canViewCorrigendum": false,
         "workCategoryName": "Water supply/sewage lines",
         "tenderType": "RFQ",
