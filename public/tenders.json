@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-12T23:06:03.179045+00:00",
+  "generated_at": "2026-11-12T23:28:16.446895+00:00",
   "source": "https://kppp.karnataka.gov.in",
   "last_full_at": null,
   "count": 5914,
@@ -921,8 +921,8 @@
       "city": "",
       "amount": 579464.55,
       "amount_display": "579464.55",
-      "emd": null,
-      "fee": null,
+      "emd": 17100.0,
+      "fee": 500.0,
       "published_date": "12-11-2026 21:35:46",
       "closing_date": "20-11-2026 16:00:00",
       "status": "PUBLISHED",
