@@ -1,9 +1,9 @@
 {
-  "last_success_at": "2026-11-20T00:07:21.151742+00:00",
-  "generated_at": "2026-11-20T00:05:55.512357+00:00",
+  "last_success_at": "2026-11-20T00:39:33.779766+00:00",
+  "generated_at": "2026-11-20T00:37:46.980929+00:00",
   "status": "healthy",
   "count": 5918,
-  "emd_known": 5785,
+  "emd_known": 5799,
   "category_counts": {
     "WORKS": 3906,
     "GOODS": 736,
